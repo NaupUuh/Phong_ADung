@@ -213,7 +213,7 @@ CRASH_LOG_FILE = Path.cwd() / "video_story_publisher_crash_V22.99.log"
 
 # Phiên bản tool. updater.py đọc dòng này để so với version.json trên GitHub;
 # release.py tự ghi lại mỗi lần phát hành bản mới.
-APP_VERSION = "22.100.0"
+APP_VERSION = "22.100.1"
 
 def _write_crash_log(title: str, exc_type=None, exc_value=None, exc_tb=None, extra: str = ""):
     """Write fatal/unhandled errors to a persistent text file."""
@@ -1487,6 +1487,13 @@ class StoryPipeline:
         self.client = OpenAI(
             api_key=cfg["vilao_api_key"].strip(),
             base_url=cfg["vilao_base_url"].strip().rstrip("/"),
+            # Without an explicit timeout the SDK defaults to read=600s with
+            # 2 retries, so a single stalled Vilao request can freeze the run
+            # for ~30 minutes with no log output (looks like a hang at
+            # "Đang chuẩn bị..."). Bound it and skip retries so the failure
+            # surfaces quickly and the user sees a real error.
+            timeout=180.0,
+            max_retries=0,
         )
         self.work_dir: Optional[Path] = None
         self.transcript_segments: List[TranscriptSegment] = []
@@ -3425,7 +3432,12 @@ Return STRICT JSON only:
         if videos:
             check_ffmpeg(self.cfg.get("ffmpeg_bin", ""))
         if not self.cfg.get("batch_models_checked"):
+            # Log BEFORE the network probe: a stalled Vilao request used to
+            # leave the GUI showing "Đang chuẩn bị..." with an empty log box,
+            # which looks identical to a freeze.
+            self._log("START: Preparing (kiểm tra model Vilao)")
             self.check_model_access()
+            self._log("DONE: Preparing (model Vilao OK)")
 
         self.source_videos = videos
         self.two_video_mode = False
@@ -4902,7 +4914,7 @@ class App(tk.Tk):
 
         def worker():
             try:
-                client = OpenAI(api_key=key, base_url=base)
+                client = OpenAI(api_key=key, base_url=base, timeout=60.0, max_retries=0)
                 checks = []
                 for label, model in [("Vision", selected), ("Writer", writer)]:
                     if not model:

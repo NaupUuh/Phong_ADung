@@ -1,5 +1,5 @@
 {
-  "version": "22.100.0",
-  "notes": "Fix loi popup chon Category (self.root) + them nut Lay danh sach category, mac dinh Story=15",
+  "version": "22.100.1",
+  "notes": "Fix treo 'Dang chuan bi': them timeout=180s + max_retries=0 cho Vilao client, log truoc khi check model",
   "date": "2026-10-05"
 }
