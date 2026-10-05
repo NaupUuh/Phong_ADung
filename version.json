@@ -1,5 +1,5 @@
 {
-  "version": "22.100.1",
-  "notes": "Fix treo 'Dang chuan bi': them timeout=180s + max_retries=0 cho Vilao client, log truoc khi check model",
+  "version": "22.100.2",
+  "notes": "Fix con lan chuot: them binding MouseWheel cho canvas chinh (cuon duoc o vung nen, khong chi trong o nhap)",
   "date": "2026-10-05"
 }
