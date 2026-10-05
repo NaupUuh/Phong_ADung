@@ -140,3 +140,13 @@ python sync_z.py
 - Config **không** bị cập nhật ghi đè — `updater.py` chỉ ghi đè file thuộc repo.
 - Máy mới: chạy `Cai_dat_may_moi.bat` trước, sau đó chỉ cần bấm nút Cập nhật.
 - Tool dùng chung `site_id` / API key với tool kia (do copy config) nhưng KHÔNG ghi đè nhau.
+
+### Fix 2026-10-05 (v22.100.0)
+- **Loi `'_tkinter.tkapp' object has no attribute 'root'`** khi bam "Lay danh sach" category
+  -> nguyen nhan: `tk.Toplevel(self.root)` nhung class `App(tk.Tk)` KHONG co attr `self.root`.
+  -> FIX: doi thanh `tk.Toplevel(self)` + `win.transient(self)`.
+  -> BAI HOC: trong file nay `App` CHINH LA Tk root -> moi Toplevel dung `tk.Toplevel(self)`.
+- Da test: popup hien 3 dong, bam Chon -> dien dung ID, bam Dong -> dong cua so, GUI 7 tab OK, khong con crash log.
+- **API Adsconex da HOI PHUC** cho token that (popup hien duoc = GET /api/categories tra 200).
+  Token rac van 403 `blogbio_verify_failed` nhu cu -> dung lo.
+- Da release v22.100.0 + sync Z 13/13 MD5 khop.
