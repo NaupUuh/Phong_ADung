@@ -150,3 +150,19 @@ python sync_z.py
 - **API Adsconex da HOI PHUC** cho token that (popup hien duoc = GET /api/categories tra 200).
   Token rac van 403 `blogbio_verify_failed` nhu cu -> dung lo.
 - Da release v22.100.0 + sync Z 13/13 MD5 khop.
+
+### Fix 2026-10-05 (v22.100.1) — TREO "Dang chuan bi..."
+- **Trieu chung:** bam chay, qua 1-2 phut van hien "Dang chuan bi...", Log TRONG hoan toan.
+- **Nguyen nhan (faulthandler dump):** thread worker ket trong `openai ... chat.completions.create`
+  -> httpx `read`. Client o `StoryPipeline.__init__` KHONG set timeout nen dung default cua SDK:
+  **read=600s + max_retries=2** => 1 request Vilao bi treo co the giu tool ~30 phut, khong in log gi.
+  (Log trong vi `check_model_access()` chay TRUOC moi dong log dau tien.)
+- **FIX:**
+  1. `StoryPipeline.__init__`: them `timeout=180.0, max_retries=0` cho OpenAI client.
+  2. `run()`: them `_log("START: Preparing (kiem tra model Vilao)")` TRUOC `check_model_access()`
+     va `DONE: Preparing` sau -> khong bao gio im lang nua.
+  3. Nut test model (dong ~4917): them `timeout=60.0, max_retries=0`.
+- **Da verify:** client.timeout=180.0 | max_retries=0; log "START: Preparing" xuat hien NGAY
+  (truoc khi cho API) => het hien tuong dong bang im lang.
+- **Luu y:** `check_model_access` binh thuong chi ~3.6s (Vision gpt-6-sol 3.4s, Writer deepseek-v4.1-flash 0.2s).
+- Da release v22.100.1 + sync Z 13/13 MD5 khop.
