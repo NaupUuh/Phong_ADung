@@ -213,7 +213,7 @@ CRASH_LOG_FILE = Path.cwd() / "video_story_publisher_crash_V22.99.log"
 
 # Phiên bản tool. updater.py đọc dòng này để so với version.json trên GitHub;
 # release.py tự ghi lại mỗi lần phát hành bản mới.
-APP_VERSION = "22.100.2"
+APP_VERSION = "22.100.3"
 
 def _write_crash_log(title: str, exc_type=None, exc_value=None, exc_tb=None, extra: str = ""):
     """Write fatal/unhandled errors to a persistent text file."""
@@ -4217,12 +4217,6 @@ class App(tk.Tk):
         ttk.Label(source, text="Chọn folder cha: tự quét mọi folder con; mỗi video đăng một bài rồi đổi tên theo ID. Folder bắt buộc Auto publish.",
                   foreground="#555").grid(row=4, column=0, columnspan=5, sticky="w", pady=(2, 0))
 
-        ttk.Label(source, text="Câu chèn trong tên file (mỗi dòng 1 câu, tool chọn ngẫu nhiên 1 câu; trống = \"full story\")",
-                  foreground="#555").grid(row=5, column=0, columnspan=5, sticky="w", pady=(6, 2))
-        self.filename_phrase_editor = scrolledtext.ScrolledText(source, wrap="word", height=4)
-        self.filename_phrase_editor.grid(row=6, column=0, columnspan=5, sticky="ew", pady=(0, 4))
-        self.filename_phrase_editor.insert("1.0", self.cfg.get("filename_phrase_list", DEFAULT_FILENAME_PHRASES))
-
         # ---------------- TABS ----------------
         nb = ttk.Notebook(top, height=240)
         nb.pack(fill="x", pady=6)
@@ -4247,11 +4241,14 @@ class App(tk.Tk):
         # The script belongs only to the current run.
         prompt_tab.columnconfigure(0, weight=1, uniform="editors")
         prompt_tab.columnconfigure(1, weight=1, uniform="editors")
+        prompt_tab.columnconfigure(2, weight=1, uniform="editors")
         prompt_tab.rowconfigure(0, weight=1)
         prompt_panel = ttk.LabelFrame(prompt_tab, text="Prompt viết Blog + Caption", padding=6)
         prompt_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
         script_panel = ttk.LabelFrame(prompt_tab, text="Kịch bản đầu vào", padding=6)
-        script_panel.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
+        script_panel.grid(row=0, column=1, sticky="nsew", padx=(5, 5))
+        phrase_panel = ttk.LabelFrame(prompt_tab, text="Câu chèn trong tên file", padding=6)
+        phrase_panel.grid(row=0, column=2, sticky="nsew", padx=(5, 0))
 
         prompt_controls = ttk.Frame(prompt_panel)
         prompt_controls.pack(fill="x", pady=(0, 4))
@@ -4265,8 +4262,14 @@ class App(tk.Tk):
         script_controls.pack(fill="x", pady=(0, 4))
         ttk.Button(script_controls, text="Nạp kịch bản .txt", command=self.load_script_file).pack(side="left")
         ttk.Button(script_controls, text="Xóa kịch bản", command=self.clear_script).pack(side="left", padx=4)
-        self.script_editor = scrolledtext.ScrolledText(script_panel, wrap="word", height=8, width=40)
+        self.script_editor = scrolledtext.ScrolledText(script_panel, wrap="word", height=8, width=32)
         self.script_editor.pack(fill="both", expand=True)
+
+        ttk.Label(phrase_panel, text="Mỗi dòng 1 câu; tool chọn ngẫu nhiên 1 câu. Trống = \"full story\".",
+                  foreground="#555").pack(anchor="w", pady=(0, 4))
+        self.filename_phrase_editor = scrolledtext.ScrolledText(phrase_panel, wrap="word", height=8, width=32)
+        self.filename_phrase_editor.pack(fill="both", expand=True)
+        self.filename_phrase_editor.insert("1.0", self.cfg.get("filename_phrase_list", DEFAULT_FILENAME_PHRASES))
         # Keep taller settings tabs readable, while the editor tab brings actions up.
         nb.bind("<<NotebookTabChanged>>", lambda event: nb.configure(
             height=240 if nb.select() == str(prompt_tab) else
