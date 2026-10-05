@@ -61,6 +61,35 @@ Script tự: kiểm tra version lớn hơn → ghi `version.json` → ghi `APP_V
 - Crash log: `Phong_ADung\video_story_publisher_crash_V22.99.log`
 - Cache: `%LOCALAPPDATA%\VideoStoryPublisher\V22.99\`
 
+## Tab Adsconex (mới, 2026-10-05) — CHƯA test end-to-end
+- Tab **Adsconex** trong GUI + ô chọn **"Net đăng bài"** (SmartTraffic / Adsconex) ở tab chính.
+- Ô nhập **Adsconex API Token** che `*` + nút **Edit Key / Hide Key**, nút **Kiểm tra token**, mở API docs.
+- Config thêm 7 khoá: `net_provider`, `adsconex_api_key`, `adsconex_base_url`,
+  `adsconex_site_host`, `adsconex_category`, `adsconex_author`, `adsconex_apply_image_to_all`.
+- `publish_adsconex()` + `publish_current()` (dispatcher) — batch và nút Publish đều đi qua dispatcher.
+- Khác SmartTraffic: Adsconex tạo **1 bài riêng mỗi chapter**, link dạng `/blog/<slug>`,
+  link lấy **từ response** (KHÔNG tự ghép từ permalink), không gọi `verify_published_chapters` (`?c=N`).
+- **Đã verify:** compile OK; dispatcher đúng cả 4 giá trị (`SmartTraffic`/`Adsconex`/`adsconex`/rỗng);
+  rename file ra đúng định dạng 219 + link `/blog/<slug>`; GUI dựng đủ tab.
+- **CHẶN:** API public Adsconex trả **403 `blogbio_verify_failed` / `verify_status: 502`**.
+  Đã chứng minh là **lỗi server** (token rác và token thật cùng lỗi; không token → 401 đúng chuẩn).
+  Monitor 78/78 lần đều 403. **Khi API hồi phục:** chạy 1 bài test Net=Adsconex, xác nhận response
+  có `posts[]` + link `/blog/<slug>` rồi mới bump version.
+
+- **Category ID lấy ở đâu (2026-10-05):** bảng `/admin/categories` KHÔNG hiện ID.
+  Lấy bằng 1 trong 2 cách:
+  - Trong tool: tab Adsconex → bấm **"Lấy danh sách"** (cần token) → popup → bấm 1 dòng là điền ID.
+  - Thủ công: mở Chrome đã đăng nhập → F12 → Network → lọc `taxonomies` → xem
+    `GET /admin/api/v1/taxonomies/categories` (JSON có `id`, `title`, `slug`).
+  **Category thật của site:** Story=15, Fighter=14, VintageStyle=13, Athlete=12,
+  WomensWrestling=11, ProWrestling=10, AEW=9, WrestlingStar=8, SportsEntertainment=7,
+  Sport=6, Entertainment=5, Game=4, Technology=1.
+  **Mặc định trong tool = 15 (Story).** API public: `GET /api/categories` (Bearer token).
+- **`author` là gì (2026-10-05):** KHÔNG phải tên hiển thị. Là **chuỗi ghép vào đuôi slug**.
+  Bằng chứng thật: admin username `aqtn2`, creator name `Admin` → slug bài ra
+  `the-corridor-adminqq` (đuôi `adminqq`), field `author` trong post = `null`.
+  Để trống thì server tự thêm hậu tố. Điền gì thì điền chuỗi slug-safe (a-z0-9-).
+
 ## Việc còn lại
 - **ĐÃ QUYẾT (2026-10-05): GIỮ giới hạn 219 ký tự** — user chọn an toàn với Windows
   + ổ mạng, chấp nhận việc tool cắt bớt tiêu đề khi quá dài. **KHÔNG nới lên 240.**

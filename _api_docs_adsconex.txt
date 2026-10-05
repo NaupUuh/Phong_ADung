@@ -1,0 +1,128 @@
+B
+Blog editor mode
+Overview
+Dashboard
+Content
+AI Box
+Posts
+Categories
+Series
+Tags
+Pages
+Reports
+System
+Short link
+Social Planner
+Themes
+Settings
+Users
+Roles
+AI Stats
+Purge cache
+Toggle Sidebar
+EN
+A
+Admin
+API Documentation
+
+Endpoints and authentication examples for integrating with Bio Blog.
+
+Back to settings
+Base URL
+
+Use this base address as the prefix for every API request.
+
+https://usjusticereport.cfx.bz/api
+Authentication
+
+Send the API token as a Bearer token with every request.
+
+Authorization: Bearer c0E38oRtNcAt5IUnFNsCDelDOIN5gNnuGyY0v5uQ34PMDh78AWEkKastQd1bOLg7QjtGqgWY1mXqXA7W
+Endpoints
+
+Open an endpoint to view its parameters and a ready-to-use cURL request.
+
+GET
+List categories
+https://usjusticereport.cfx.bz/api/categories
+
+Returns all available post categories.
+
+curl -X GET "https://usjusticereport.cfx.bz/api/categories" \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer c0E38oRtNcAt5IUnFNsCDelDOIN5gNnuGyY0v5uQ34PMDh78AWEkKastQd1bOLg7QjtGqgWY1mXqXA7W"
+Copy
+GET
+List tags
+https://usjusticereport.cfx.bz/api/tags
+
+Returns all available post tags.
+
+curl -X GET "https://usjusticereport.cfx.bz/api/tags" \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer c0E38oRtNcAt5IUnFNsCDelDOIN5gNnuGyY0v5uQ34PMDh78AWEkKastQd1bOLg7QjtGqgWY1mXqXA7W"
+Copy
+GET
+List series
+https://usjusticereport.cfx.bz/api/series
+
+Returns all available post series.
+
+curl -X GET "https://usjusticereport.cfx.bz/api/series" \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer c0E38oRtNcAt5IUnFNsCDelDOIN5gNnuGyY0v5uQ34PMDh78AWEkKastQd1bOLg7QjtGqgWY1mXqXA7W"
+Copy
+POST
+Create a post
+https://usjusticereport.cfx.bz/api/posts
+
+Creates a post and returns its ID, slug and frontend link. With mode="chapter", content is split automatically into series metadata plus one post per "CHAPTER N - Title" marker, and the response returns only the chapter posts.
+
+FIELD	TYPE	REQUIRED	DESCRIPTION
+title	string	Yes	Post title.
+content	string	No	HTML content. In chapter mode, paste the full content — mark each chapter with a line starting with "CHAPTER N - Title" (e.g. CHAPTER 1 - Hello World); everything before the first marker becomes the series description.
+feature_image	url	No	Thumbnail URL.
+permalink	string	No	Slug source.
+author	string	No	Used to build the final slug.
+series_id	integer	No	Existing series ID.
+category	integer	No	Category ID.
+tags	integer[]	No	Array of tag IDs.
+seo_title	string	No	SEO title.
+seo_description	string	No	SEO description.
+seokeyword	string	No	Saved into seo_keywords.
+mode	string	No	"normal" (default) creates a single post as usual. "chapter" stores story-level metadata on a series and creates one post per chapter marker — the response count always equals the number of chapters.
+skip_intro	boolean	No	Chapter mode only. Retained for backward compatibility; the intro is always stored as the series description and is never created as a separate post.
+apply_image_to_all	boolean	No	Chapter mode only. When true, every chapter post uses feature_image too. Defaults to false (chapters get no image unless this is set).
+curl -X POST "https://usjusticereport.cfx.bz/api/posts" \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer c0E38oRtNcAt5IUnFNsCDelDOIN5gNnuGyY0v5uQ34PMDh78AWEkKastQd1bOLg7QjtGqgWY1mXqXA7W" \
+  -H "Content-Type: application/json" \
+  -d '{
+  "title": "Example post",
+  "content": "Post content",
+  "feature_image": "https://example.com/image.jpg",
+  "permalink": "example-post",
+  "author": "Author name",
+  "series_id": 1,
+  "category": 1,
+  "tags": [
+    1,
+    2
+  ],
+  "seo_title": "Example post SEO title",
+  "seo_description": "Example post SEO description",
+  "seokeyword": "example, post"
+}'
+Copy
+GET
+Get post details
+https://usjusticereport.cfx.bz/api/posts/{slug}
+
+Returns a post by its URL slug.
+
+FIELD	TYPE	REQUIRED	DESCRIPTION
+slug	string	Yes	The post URL slug.
+curl -X GET "https://usjusticereport.cfx.bz/api/posts/example-post" \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer c0E38oRtNcAt5IUnFNsCDelDOIN5gNnuGyY0v5uQ34PMDh78AWEkKastQd1bOLg7QjtGqgWY1mXqXA7W"
+Copy
