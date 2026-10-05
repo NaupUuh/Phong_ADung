@@ -151,6 +151,20 @@ python sync_z.py
   Token rac van 403 `blogbio_verify_failed` nhu cu -> dung lo.
 - Da release v22.100.0 + sync Z 13/13 MD5 khop.
 
+### Fix 2026-10-05 (v22.100.3) — GOM O "CAU CHEN" VAO TAB KICH BAN & PROMPT
+- **Yeu cau:** o "Cau chen trong ten file" nam rieng o vung Source (tren notebook) lam trang cao,
+  phai cuon nhieu. Gom xuong tab "Kich ban & Prompt" thanh **3 o canh nhau**.
+- **Cach lam:** xoa label+editor khoi `source` (bo row=5/6); them `phrase_panel` (LabelFrame
+  "Câu chèn trong tên file") vao `prompt_tab` column=2, `columnconfigure(2, weight=1,
+  uniform="editors")`. `script_panel` doi padx `(5,0)` -> `(5,5)`.
+- **Giu nguyen bien:** `self.filename_phrase_editor` — ham save `cfg["filename_phrase_list"]`
+  va `pick_filename_phrase()` khong doi.
+- **Chieu cao:** ADung notebook prompt_tab = 240 (panel h=220); DHue = 190 (panel h=180).
+  Do bang `probe_h.py`: ca 3 panel deu `reqh < h` => khong bi cat.
+- **Test:** `smoke_3panel.py` (ADung) + `smoke_3panel_dhue.py` (DHue) — 3 panel dung cot 0/1/2,
+  editor mapped, save roundtrip dung.
+- **Luu y CRLF:** file dung CRLF; `patch` voi khoi nhieu dong hay truot — cat nho tung khoi.
+
 ### Fix 2026-10-05 (v22.100.2) — CON LAN CHUOT
 - **Trieu chung:** lan chuot o vung nen (ngoai cac o nhap) KHONG cuon trang; chi cuon duoc khi
   tro nam trong o Text/Listbox. Phai keo thanh truot tay moi xuong duoc.
