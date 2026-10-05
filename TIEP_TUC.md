@@ -151,6 +151,26 @@ python sync_z.py
   Token rac van 403 `blogbio_verify_failed` nhu cu -> dung lo.
 - Da release v22.100.0 + sync Z 13/13 MD5 khop.
 
+### Fix 2026-10-05 (v22.100.2) — CON LAN CHUOT
+- **Trieu chung:** lan chuot o vung nen (ngoai cac o nhap) KHONG cuon trang; chi cuon duoc khi
+  tro nam trong o Text/Listbox. Phai keo thanh truot tay moi xuong duoc.
+- **Nguyen nhan:** `tk.Canvas` KHONG tu an su kien `<MouseWheel>` (khac `Text`/`Listbox`).
+  Trang chi cuon duoc neu tro tinh co nam tren widget co scroll rieng -> vung nen chet.
+- **FIX (3 phan):**
+  1. Luu canvas: `self.content_canvas = canvas` (dong ~4167).
+  2. `self.bind_all("<MouseWheel>", self._on_mousewheel, add="+")` (dong ~4184).
+  3. Them `_on_mousewheel()` + `_scroll_content()` (~dong 4621):
+     - `winfo_containing()` -> di nguoc chuoi `master`; gap `Text`/`Listbox` -> `return None`
+       (nhuong quyen cho o do tu cuon).
+     - Chi cuon khi diem nam TRONG `content_canvas` (chan `bind_all` cuon nham khi popup mo).
+     - `winfo_containing()` tra `None` -> fallback so sanh toa do voi khung canvas.
+     - Het scroll (`first<=0 and last>=1`) -> `return None`, khong an su kien vo ich.
+- **BAI HOC:** moi `tk.Canvas` lam khung cuon deu PHAI bind `<MouseWheel>` thu cong;
+  dung `bind_all` + kiem tra widget duoi con tro de khong giat quyen cua `Text`/`Listbox`.
+- Da test 5 kich ban: ngoai o nhap (xuong+len) OK, trong Text nhuong quyen OK,
+  trong popup khong cuon canvas chinh OK, fallback `winfo_containing=None` OK, khong crash log.
+- Da release v22.100.2 + sync Z 13/13 MD5 khop.
+
 ### Fix 2026-10-05 (v22.100.1) — TREO "Dang chuan bi..."
 - **Trieu chung:** bam chay, qua 1-2 phut van hien "Dang chuan bi...", Log TRONG hoan toan.
 - **Nguyen nhan (faulthandler dump):** thread worker ket trong `openai ... chat.completions.create`
