@@ -1,9 +1,9 @@
-# TIẾP TỤC — Phong_ADung (v22.100.10)
+# TIẾP TỤC — Phong_ADung (v22.100.11)
 
 Cập nhật: 2026-10-06
 
 ## TRẠNG THÁI
-- Đã release public **v22.100.10** (commit `bb36287`, push 2026-10-06T17:02:36Z).
+- Đã release public **v22.100.11** (commit `c4d5ed6`, push 2026-10-06T17:04:56Z).
 - Sync Z xong: `Z:\HQData-2\TOOLS TỔNG HỢP\TOOLS UPDATE CUỐI\Phong_ADung` (13/13 MD5 khớp).
 - File chính: `viet_drama_V22.99_stable_folder.py` (CRLF 6877 / LF-only 0). py_compile OK.
 
@@ -49,3 +49,15 @@ $PY sync_z.py                                           # copy len Z + doi chieu
 - File `.bat` cho máy khác: **ASCII-only + CRLF + `pause`** (LF + tiếng Việt → tự tắt).
 - Tool gửi header Chrome đầy đủ để qua Cloudflare (urllib trần bị `Error 1010`).
 - Đọc/ghi file tool bằng `newline=""` (CRLF, không được đổi sang LF).
+
+## BỔ SUNG (quan trọng — đọc trước khi làm gì thêm)
+- **NGUYÊN NHÂN GỐC 403 `blogbio_verify_failed` = SAI HOST, không phải token.**
+  Tool cũ hardcode `usjusticereport.cfx.bz` làm mặc định. Đo thật: cùng 1 token, host đó trả GET 403 +
+  POST 403 `blogbio_verify_failed/verify_status 502`; `dramanest.gigglelo.com` trả GET 200 + POST 422.
+  Token rác bắn vào host chết cũng ra ĐÚNG JSON lỗi đó → lỗi này không phân biệt được token đúng/sai.
+- **Đã bỏ hẳn host chết** khỏi cả 2 tool; mặc định = `dramanest.gigglelo.com`. Host đọc từ config/GUI.
+- **86 bài 403 KHÔNG mất trắng** (đính chính kết luận cũ): 86/86 còn `publish_payload_adsconex.json`.
+  Nhưng `find_pending_adsconex()` cũ chỉ đọc file `pending` → bỏ sót. Đã vá: đọc lại cặp
+  `publish_response` + `publish_payload` khi `http_status in (401,403)`. Số bài nút nhặt được: **113 → 200**.
+- **Việc còn lại cho user:** máy `Admin` bấm "⬆ Cập nhật" lên v22.100.11, mở tab Adsconex bấm
+  "Đăng lại bài lỗi" → đăng lại 200 bài (90 bài 403 + 108 bài 502 + 2 network).
