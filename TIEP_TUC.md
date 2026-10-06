@@ -1,9 +1,9 @@
-# TIẾP TỤC — Phong_ADung (v22.100.9)
+# TIẾP TỤC — Phong_ADung (v22.100.10)
 
 Cập nhật: 2026-10-06
 
 ## TRẠNG THÁI
-- Đã release public **v22.100.9** (commit `f3853ec`, push 2026-10-06T16:59:22Z).
+- Đã release public **v22.100.10** (commit `bb36287`, push 2026-10-06T17:02:36Z).
 - Sync Z xong: `Z:\HQData-2\TOOLS TỔNG HỢP\TOOLS UPDATE CUỐI\Phong_ADung` (13/13 MD5 khớp).
 - File chính: `viet_drama_V22.99_stable_folder.py` (CRLF 6877 / LF-only 0). py_compile OK.
 
