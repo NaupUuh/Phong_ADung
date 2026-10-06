@@ -32,7 +32,7 @@ Base URL
 
 Use this base address as the prefix for every API request.
 
-https://usjusticereport.cfx.bz/api
+https://dramanest.gigglelo.com/api
 Authentication
 
 Send the API token as a Bearer token with every request.
@@ -44,37 +44,37 @@ Open an endpoint to view its parameters and a ready-to-use cURL request.
 
 GET
 List categories
-https://usjusticereport.cfx.bz/api/categories
+https://dramanest.gigglelo.com/api/categories
 
 Returns all available post categories.
 
-curl -X GET "https://usjusticereport.cfx.bz/api/categories" \
+curl -X GET "https://dramanest.gigglelo.com/api/categories" \
   -H "Accept: application/json" \
   -H "Authorization: Bearer c0E38oRtNcAt5IUnFNsCDelDOIN5gNnuGyY0v5uQ34PMDh78AWEkKastQd1bOLg7QjtGqgWY1mXqXA7W"
 Copy
 GET
 List tags
-https://usjusticereport.cfx.bz/api/tags
+https://dramanest.gigglelo.com/api/tags
 
 Returns all available post tags.
 
-curl -X GET "https://usjusticereport.cfx.bz/api/tags" \
+curl -X GET "https://dramanest.gigglelo.com/api/tags" \
   -H "Accept: application/json" \
   -H "Authorization: Bearer c0E38oRtNcAt5IUnFNsCDelDOIN5gNnuGyY0v5uQ34PMDh78AWEkKastQd1bOLg7QjtGqgWY1mXqXA7W"
 Copy
 GET
 List series
-https://usjusticereport.cfx.bz/api/series
+https://dramanest.gigglelo.com/api/series
 
 Returns all available post series.
 
-curl -X GET "https://usjusticereport.cfx.bz/api/series" \
+curl -X GET "https://dramanest.gigglelo.com/api/series" \
   -H "Accept: application/json" \
   -H "Authorization: Bearer c0E38oRtNcAt5IUnFNsCDelDOIN5gNnuGyY0v5uQ34PMDh78AWEkKastQd1bOLg7QjtGqgWY1mXqXA7W"
 Copy
 POST
 Create a post
-https://usjusticereport.cfx.bz/api/posts
+https://dramanest.gigglelo.com/api/posts
 
 Creates a post and returns its ID, slug and frontend link. With mode="chapter", content is split automatically into series metadata plus one post per "CHAPTER N - Title" marker, and the response returns only the chapter posts.
 
@@ -93,7 +93,7 @@ seokeyword	string	No	Saved into seo_keywords.
 mode	string	No	"normal" (default) creates a single post as usual. "chapter" stores story-level metadata on a series and creates one post per chapter marker — the response count always equals the number of chapters.
 skip_intro	boolean	No	Chapter mode only. Retained for backward compatibility; the intro is always stored as the series description and is never created as a separate post.
 apply_image_to_all	boolean	No	Chapter mode only. When true, every chapter post uses feature_image too. Defaults to false (chapters get no image unless this is set).
-curl -X POST "https://usjusticereport.cfx.bz/api/posts" \
+curl -X POST "https://dramanest.gigglelo.com/api/posts" \
   -H "Accept: application/json" \
   -H "Authorization: Bearer c0E38oRtNcAt5IUnFNsCDelDOIN5gNnuGyY0v5uQ34PMDh78AWEkKastQd1bOLg7QjtGqgWY1mXqXA7W" \
   -H "Content-Type: application/json" \
@@ -116,13 +116,13 @@ curl -X POST "https://usjusticereport.cfx.bz/api/posts" \
 Copy
 GET
 Get post details
-https://usjusticereport.cfx.bz/api/posts/{slug}
+https://dramanest.gigglelo.com/api/posts/{slug}
 
 Returns a post by its URL slug.
 
 FIELD	TYPE	REQUIRED	DESCRIPTION
 slug	string	Yes	The post URL slug.
-curl -X GET "https://usjusticereport.cfx.bz/api/posts/example-post" \
+curl -X GET "https://dramanest.gigglelo.com/api/posts/example-post" \
   -H "Accept: application/json" \
   -H "Authorization: Bearer c0E38oRtNcAt5IUnFNsCDelDOIN5gNnuGyY0v5uQ34PMDh78AWEkKastQd1bOLg7QjtGqgWY1mXqXA7W"
 Copy
