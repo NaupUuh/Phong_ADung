@@ -265,7 +265,7 @@ CRASH_LOG_FILE = Path.cwd() / "video_story_publisher_crash_V22.99.log"
 
 # Phiên bản tool. updater.py đọc dòng này để so với version.json trên GitHub;
 # release.py tự ghi lại mỗi lần phát hành bản mới.
-APP_VERSION = "22.100.9"
+APP_VERSION = "22.100.10"
 
 def _write_crash_log(title: str, exc_type=None, exc_value=None, exc_tb=None, extra: str = ""):
     """Write fatal/unhandled errors to a persistent text file."""
@@ -5747,6 +5747,16 @@ class App(tk.Tk):
                     count = len(series) if isinstance(series, list) else "?"
                     self.log(f"Adsconex token OK — HTTP 200 | series hiện có: {count}\n")
                     self.q.put(("adsconex_test", f"Adsconex OK — token hợp lệ.\n\nSeries hiện có trên site: {count}"))
+                elif r.status_code in (401, 403):
+                    # 401/403 o day hau het la TOKEN BI TU CHOI (blogbio_verify_failed)
+                    # hoac base URL tro sai host. Noi ro de khong doan mo.
+                    snippet = (r.text or "")[:300]
+                    why = ("Token bi tu choi (blogbio_verify_failed). "
+                           "Kiem tra: (1) API base URL co dung host dang chay khong ("
+                           + host + "), (2) token con hieu luc khong.")
+                    self.log(f"Adsconex token FAIL — HTTP {r.status_code} | {snippet}\n")
+                    self.q.put(("adsconex_test",
+                                f"Adsconex HTTP {r.status_code}\n\n{why}\n\nChi tiet: {snippet}"))
                 else:
                     snippet = (r.text or "")[:300]
                     self.log(f"Adsconex token FAIL — HTTP {r.status_code}: {snippet}\n")
