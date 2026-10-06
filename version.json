@@ -1,5 +1,5 @@
 {
-  "version": "22.100.11",
-  "notes": "Nut 'Dang lai bai loi' nhat duoc ca bai 403 cu (truoc chi co payload, khong co file pending) -> cuu duoc 87 bai tuong da mat. Them: 403 = bai chua duoc tao (404) nen dang lai KHONG sinh bai trung.",
+  "version": "22.100.12",
+  "notes": "Fix 502 Adsconex: chia nho request (>36KB -> nhieu POST kem series_id, khong tach series); nut 'Dang lai bai loi' nhat ca bai 502; chong dang trung bang doi chieu /series; sua https://https:// o nut 'Lay link site'; sua NameError khi cap nhat that bai",
   "date": "2026-10-07"
 }

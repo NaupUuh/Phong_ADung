@@ -1,63 +1,74 @@
-# TIẾP TỤC — Phong_ADung (v22.100.11)
+# TIẾP TỤC — Phong_ADung (v22.100.12)
 
-Cập nhật: 2026-10-06
+Cập nhật: 2026-10-07
 
 ## TRẠNG THÁI
-- Đã release public **v22.100.11** (commit `c4d5ed6`, push 2026-10-06T17:04:56Z).
-- Sync Z xong: `Z:\HQData-2\TOOLS TỔNG HỢP\TOOLS UPDATE CUỐI\Phong_ADung` (13/13 MD5 khớp).
-- File chính: `viet_drama_V22.99_stable_folder.py` (CRLF 6877 / LF-only 0). py_compile OK.
+- Đã vá 3 lỗi + thêm chia nhỏ request cho Adsconex. File chính:
+  `viet_drama_V22.99_stable_folder.py` (LF-only, py_compile OK).
+- 5 bài 502 tồn đọng đã đăng lại đủ 10 chương/bài (mỗi bài 1 series).
 
-## NGUYÊN NHÂN GỐC LỖI 403 blogbio_verify_failed (đã chốt)
-Tool có **host chết `usjusticereport.cfx.bz`** làm mặc định. Host này CHẾT THẬT:
-- GET `/` → 200 (site tĩnh còn sống) NHƯNG mọi endpoint `/api/*` → **403 `blogbio_verify_failed` / `verify_status:502`** với MỌI token (kể cả token đúng).
+## NGUYÊN NHÂN GỐC 502 `origin_bad_gateway` (đã chốt — QUAN TRỌNG)
+502 khi đăng Adsconex **KHÔNG phải do token, KHÔNG do payload bẩn**.
+Origin site (dramanest.gigglelo.com) bị **timeout ~10–11 giây** khi request quá lớn:
+- POST /posts content **> ~50KB** → Cloudflare 502 `origin_bad_gateway` sau ~11s.
+- Cùng content đó **<= ~40KB** → 201 trong 2–9s.
+- Tất định: cùng payload 78KB đăng OK ngày 06/10, nay 502 lặp lại y hệt mọi lần.
+- Bisect: 1..7 chương (40KB) OK; 1..8 (47KB) 502; 7..8 / 5..8 / 1..6 / từng chương đều OK
+  ⇒ ngưỡng theo **TỔNG dung lượng content**, không theo chương cụ thể.
+
+## ĐÃ VÁ (v22.100.12)
+1. **Chia nhỏ request** (`_adsconex_send_all` + `adsconex_split_chunks`) — vá chính cho 502.
+   - content > `adsconex_max_chars_per_request` (mặc định **36000**) → cắt tại ranh giới
+     `<p>CHAPTER N - ...</p>`, gửi nhiều lần.
+   - **BẮT BUỘC** truyền `series_id` cho phần 2 trở đi (`adsconex_series_id_for_slug`).
+     Không có series_id thì **mỗi POST tạo 1 series mới → chương bị tách** (đã bị thật).
+   - Nghỉ giữa các phần: `adsconex_chunk_gap_seconds` (mặc định 3s).
+   - Mọi phần OK → gộp `posts` trả về như 1 lần gửi; phần nào lỗi → trả payload GỐC để lưu đăng lại.
+2. **Nút "Đăng lại bài lỗi" bỏ sót bài 502** — `find_pending_adsconex` trước chỉ nhặt 401/403.
+   Nay nhặt cả `401/403/429/500/502/503/504/520-524/network`.
+3. **Chống đăng trùng** — `adsconex_existing_slugs()` đối chiếu slug payload với `/series` trên site,
+   bỏ qua bài đã có (ghi `republish_skipped_already_live.txt`). Bắt quả thật: 2/7 bài lưu
+   `http_status=502` nhưng series **ĐÃ có trên site** (502 lỗi giả — origin đã tạo bài nhưng
+   response bị cắt). Đăng lại mù sẽ sinh bài trùng.
+4. **Nút "Lấy link site"** ra `https://https://...` khi config đã có scheme → đã sửa.
+5. **`NameError: free variable 'e'`** khi cập nhật thất bại (`_update_work`, `_update_apply`):
+   lambda trong `self.after(0, lambda: ...)` đọc biến `e` của `except` — đã hết scope khi Tk chạy.
+   Sửa: gán `_err = str(e)` trước. Trước đây lỗi thật bị che bằng NameError.
+
+## ĐÃ XỬ LÝ XONG TRÊN SITE
+- 5 bài 502 trong `Z:\...\3 vu oan\ch đăng 4\Story Outputs` đã đăng lại đủ 10 chương/bài, mỗi bài 1 series.
+- 5 bài này lúc đăng lần đầu (bản cũ) bị tách 2–3 series → đã gộp về 1 series bằng `PUT /posts/{id}`
+  (đổi `series_id` + nối lại `next_chapter`/`prev_chapter`).
+
+## VIỆC CÒN LẠI (cần xoá tay trong CMS — API không có route xoá/sửa series)
+- **18 series test** tên `ZZPROBE ...` (id: 7241, 7249–7252, 7257–7259, 7261–7262, 7264–7265, 7267, 7271–7273, 7286, 7291).
+- **6 series rỗng** (đã chuyển hết chương sang series chính): id 7275, 7277, 7279, 7280, 7282, 7283.
+
+## NGUYÊN NHÂN GỐC 403 blogbio_verify_failed (bản cũ — giữ để tham chiếu)
+Tool cũ hardcode **host chết `usjusticereport.cfx.bz`**. Host này chết thật:
+- GET `/` → 200 (site tĩnh còn sống) NHƯNG mọi `/api/*` → **403 `blogbio_verify_failed`** với MỌI token.
 - Cùng token đó bắn vào `dramanest.gigglelo.com` → **200**.
-→ Máy nào chạy với config trống/mặc định → trỏ vào host chết → 403 toàn bộ, y hệt lỗi máy `Admin`.
-
-**Cách ly bằng chứng:** cùng 1 token, 2 host: `dramanest.gigglelo.com` GET 200 / POST 422; `usjusticereport.cfx.bz` GET 403 / POST 403.
-Token rác → 403 `blogbio_verify_failed`. Token đúng + host chết → **cũng 403 y hệt**. ⇒ Lỗi này là **host/tầng verify**, không phân biệt được token sai hay host chết nếu chỉ nhìn 403.
-
-## ĐÃ VÁ
-1. **Bỏ hẳn host chết** `usjusticereport.cfx.bz` (11 chỗ ADung / 12 chỗ DHue) → `dramanest.gigglelo.com`.
-   Chỉ dùng host điền trong tool (`adsconex_base_url` / `adsconex_site_host`).
-2. **Vá 401/403:** token bị từ chối → **LƯU payload** (`adsconex_write_pending`) để đăng lại, kèm thông báo rõ nguyên nhân.
-   Trước đây 42 bài 403 **mất trắng** (không tạo trên site, không lưu payload).
-   An toàn: đã kiểm chứng bài 403 KHÔNG hề được tạo (404) → đăng lại không sinh trùng.
-3. Cập nhật `_api_docs_adsconex.txt` sang host mới.
-
-## VIỆC CÒN LẠI
-- [ ] **Máy `Admin` (máy lỗi):** bấm "⬆ Cập nhật" trong tool, HOẶC sửa tab Adsconex:
-      - API base URL = `https://dramanest.gigglelo.com/api`
-      - Site host     = `dramanest.gigglelo.com`
-      → rồi bấm **"Kiểm tra token"** (phải ra OK) → bấm **"Đăng lại bài lỗi"** để cứu các bài đã lưu.
-- [ ] Nếu máy Admin vẫn 403 sau khi đổi host → lúc đó mới nghi token (bấm "Kiểm tra token").
-- [ ] Bài rác test (~14 series) chưa dọn — API không có route xoá (DELETE → 405), phải xoá tay trong CMS.
-- [ ] Token dramanest đang dùng: [KHÔNG IN RA]. SHA256 đầu `a1b18c6d...`.
+→ Máy chạy config trống/mặc định → trỏ host chết → 403 toàn bộ. Đã bỏ hẳn host chết khỏi cả 2 tool.
 
 ## LỆNH HAY DÙNG
 ```bash
-cd C:/Users/Admin/Desktop/Phong_ADung
+cd C:/TOOLS UPDATE CUỐI/Phong_ADung/Phong_ADung
 PY=C:/Users/Admin/AppData/Local/Programs/Python/Python313/python.exe
 $PY -m py_compile viet_drama_V22.99_stable_folder.py   # kiem cu phap
-$PY release.py 22.100.10 "mo ta thay doi"               # phat hanh
+$PY release.py 22.100.12 "mo ta thay doi"               # phat hanh
 $PY sync_z.py                                           # copy len Z + doi chieu MD5
 ```
 
 ## BÀI HỌC
-- **Đừng tin GET 200 của 1 host là token OK.** Phải test **cùng token trên đúng host tool đang dùng**.
-- Lỗi `blogbio_verify_failed` KHÔNG nói được là token sai hay host chết → phải thử token trên host đã biết tốt.
-- Test tool thật chỉ dùng `POST {"title":""}` → 422 (không tạo bài). Đèn báo token sạch = `GET /api/categories`.
+- **502 `origin_bad_gateway` = request quá lớn, KHÔNG phải token/payload.** Origin timeout ~10–11s.
+  Ngưỡng nằm ở **tổng dung lượng content**, không theo số chương. An toàn: ~36KB/request.
+- **`POST /api/posts` mode=chapter KHÔNG tự gộp theo `permalink`.** Mỗi POST không có `series_id`
+  sẽ **tạo series mới**. Muốn gộp nhiều request vào 1 series **phải truyền `series_id`**.
+- **Sửa bài qua `PUT /api/posts/{ID số}`** (slug trả 405). Ràng buộc: `next_chapter`/`prev_chapter`
+  phải cùng series. Gộp series: gỡ link tạm (`next_chapter=null`) → đổi `series_id` → nối lại link.
+  KHÔNG có route xoá (DELETE → 405).
+- `GET /api/series` = đèn báo token sạch + dùng đối chiếu chống đăng trùng.
+- Test tool thật: `POST {"title":""}` → 422 (không tạo bài).
 - File `.bat` cho máy khác: **ASCII-only + CRLF + `pause`** (LF + tiếng Việt → tự tắt).
 - Tool gửi header Chrome đầy đủ để qua Cloudflare (urllib trần bị `Error 1010`).
-- Đọc/ghi file tool bằng `newline=""` (CRLF, không được đổi sang LF).
-
-## BỔ SUNG (quan trọng — đọc trước khi làm gì thêm)
-- **NGUYÊN NHÂN GỐC 403 `blogbio_verify_failed` = SAI HOST, không phải token.**
-  Tool cũ hardcode `usjusticereport.cfx.bz` làm mặc định. Đo thật: cùng 1 token, host đó trả GET 403 +
-  POST 403 `blogbio_verify_failed/verify_status 502`; `dramanest.gigglelo.com` trả GET 200 + POST 422.
-  Token rác bắn vào host chết cũng ra ĐÚNG JSON lỗi đó → lỗi này không phân biệt được token đúng/sai.
-- **Đã bỏ hẳn host chết** khỏi cả 2 tool; mặc định = `dramanest.gigglelo.com`. Host đọc từ config/GUI.
-- **86 bài 403 KHÔNG mất trắng** (đính chính kết luận cũ): 86/86 còn `publish_payload_adsconex.json`.
-  Nhưng `find_pending_adsconex()` cũ chỉ đọc file `pending` → bỏ sót. Đã vá: đọc lại cặp
-  `publish_response` + `publish_payload` khi `http_status in (401,403)`. Số bài nút nhặt được: **113 → 200**.
-- **Việc còn lại cho user:** máy `Admin` bấm "⬆ Cập nhật" lên v22.100.11, mở tab Adsconex bấm
-  "Đăng lại bài lỗi" → đăng lại 200 bài (90 bài 403 + 108 bài 502 + 2 network).
+- Đọc/ghi file tool bằng `newline=""` (giữ LF; git blob cũng LF).
