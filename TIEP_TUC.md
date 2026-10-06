@@ -2,8 +2,8 @@
 
 > Đọc file này trước khi sửa tool. Cập nhật lại mỗi khi rời tool.
 
-## Trạng thái hiện tại (2026-10-05)
-- **Version đang chạy:** v22.99.3
+## Trạng thái hiện tại (2026-10-06)
+- **Version đang chạy:** v22.100.4
 - **Repo GitHub:** https://github.com/NaupUuh/Phong_ADung
 - **Thư mục máy:** `Phong_ADung`
 - **Cách chạy:** bấm đúp `CHAY_Phong_ADung.bat` (hoặc `viet_drama_V22.99_stable_folder.py`)
@@ -150,6 +150,41 @@ python sync_z.py
 - **API Adsconex da HOI PHUC** cho token that (popup hien duoc = GET /api/categories tra 200).
   Token rac van 403 `blogbio_verify_failed` nhu cu -> dung lo.
 - Da release v22.100.0 + sync Z 13/13 MD5 khop.
+
+### Fix 2026-10-06 (v22.100.4) — ANH BIA: THAY DETECTOR MAT (OpenCV 5.x) + UU TIEN CAM XUC
+- **Yeu cau:** anh bia phai la anh CO NGUOI/nhan vat, NET nhat co the, cam xuc/drama cang cao cang tot.
+- **ROOT CAUSE (quan trong nhat):** OpenCV **5.0.0** da **XOA HAN** `cv2.CascadeClassifier`
+  va `cv2.data.haarcascades` -> `FACE_CASCADE = None` -> **tool MUA MAT hoan toan**; logic
+  "uu tien anh co nguoi" bi vo hieu, chi con chon theo do net thuan -> anh bia hay ra canh
+  KHONG CO NGUOI. (Khong phai loi cua ban cu — do OpenCV nang cap.)
+- **FIX:** thay Haar cascade bang **YuNet `cv2.FaceDetectorYN`** (`face_detection_yunet_2023mar.onnx`,
+  232 KB) + **model cam xuc** `facial_expression_recognition_mobilefacenet_2022july_int8bq.onnx`.
+  - Model **tu tai runtime** ve `~/.video_story_publisher_models` (KHONG commit vao repo);
+    URL chinh `media.githubusercontent.com/media/opencv/opencv_zoo/...`, URL du phong raw.
+    (Luu y: `raw.githubusercontent` tra ve 131 byte = LFS pointer -> phai dung `media.`.)
+  - **Offline fallback**: khong tai duoc model -> in canh bao, quay ve cham do net, KHONG crash.
+  - **Thread-local detector** (`_FACE_TLS`) vi `extract_frames` chay ThreadPool.
+- **ADung TRUOC DAY KHONG CO `find_person_thumbnail_frame`** (DHue moi co) -> ban va nay
+  **THEM MOI** ham nay + noi vao luong `attach_local_images` (quet lai 24 moc/video khi
+  cac khung da lay khong co mat nao).
+- **Bang diem moi (thu tu uu tien ro rang):** CO NGUOI > DO NET > CAM XUC/DRAMA.
+  `FACE_GATE=3600` > `SHARP_WEIGHT(3300)+DRAMA_WEIGHT(320)` => **moi khung co mat LUON thang
+  khung khong mat**. Trong nhom co mat: mat to + o giua + drama cao thang.
+  (Ban va v1 tung nhan `score *= 0.35` khi mo -> nhan ca phan thuong "co nguoi" -> khung mo
+  co mat thua khung net khong mat. Da sua o v2: TACH thuong co nguoi ra khoi phat do net.)
+- **Nhan cam xuc** (thu tu model tra ve): `angry, disgust, fearful, happy, neutral, sad, surprised`.
+  Tien xu ly = **align 5 landmark STD + normalize**. `EMOTION_DRAMA`: angry/fearful 1.0,
+  sad 0.92, surprised 0.82, disgust 0.68, happy 0.55, neutral 0.12.
+- **Cat vuong 290x290 theo KHUON MAT** (`make_social_thumbnail`): mat ~45% tu tren xuong ->
+  khong cat tran. Cover web 760x400 (`make_story_cover`) giu nguyen.
+- **Hieu nang (do that, 84 khung/video):** `max_width=480` -> +2.1s/video so voi ban cu
+  (trump 8.9->11.2s, Debt 8.4->10.3s). Chi rieng buoc quet khung; cac buoc khac (Whisper/TTS/render)
+  ton hang phut nen khong dang ke. **Da thu `max_width=384`: nhanh hon 30% NHUNG lech khung
+  chon o 1/4 video -> KHONG dung** (uutien chat luong anh bia). Giu 480.
+- **E2E PASS:** 12/12 khung co mat, `find_person_thumbnail_frame` tim thay, thumbnail web
+  290x290 + cover 760x400 dung kich thuoc; **thread-safety PASS** (4 luong song song, 0 loi).
+- **Backup ban cu:** `_backup_old/*.py.bak` (git + sync Z + updater deu bo qua nho `*.bak`).
+- **Bump:** `APP_VERSION` 22.100.3 -> **22.100.4**.
 
 ### Fix 2026-10-05 (v22.100.3) — GOM O "CAU CHEN" VAO TAB KICH BAN & PROMPT
 - **Yeu cau:** o "Cau chen trong ten file" nam rieng o vung Source (tren notebook) lam trang cao,
