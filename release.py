@@ -71,7 +71,7 @@ def main() -> int:
 
     VER_F.write_text(json.dumps(
         {"version": new, "notes": notes, "date": time.strftime("%Y-%m-%d")},
-        ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="")
 
     txt = MAIN.read_text(encoding="utf-8")
     txt2 = re.sub(r'^(APP_VERSION\s*=\s*)["\'][^"\']+["\']',
@@ -79,7 +79,7 @@ def main() -> int:
     if txt2 == txt:
         print("LỖI: không sửa được APP_VERSION trong file chính")
         return 1
-    MAIN.write_text(txt2, encoding="utf-8")
+    MAIN.write_text(txt2, encoding="utf-8", newline="")
     print("  đã ghi version.json + APP_VERSION")
 
     for cmd in (["git", "add", "-A"],
