@@ -1,11 +1,11 @@
-# TIẾP TỤC — Phong_ADung (v22.100.16)
+# TIẾP TỤC — Phong_ADung (v22.100.17)
 
 Cập nhật: 2026-10-12
 
 ## TRẠNG THÁI: CHẠY ỔN
-- File chính: `viet_drama_V22.99_stable_folder.py` (**LF-only**, py_compile OK, 7178 dòng).
-- Bản đang chạy: **v22.100.16**. GitHub + ổ Z đã đồng bộ (14/14 MD5 khớp).
-- Config thật: `C:\Users\Admin\.video_story_publisher_V22.99.json` (71 key, KHÔNG có placeholder).
+- File chính: `viet_drama_V22.99_stable_folder.py` (**LF-only**, py_compile OK, 7419 dòng).
+- Bản đang chạy: **v22.100.17**. GitHub + ổ Z đã đồng bộ (15/15 MD5 khớp).
+- Config thật: `C:\Users\Admin\.video_story_publisher_V22.99.json` (74 key, KHÔNG có placeholder).
 - **KHÔNG được ghi đè config này.** Test GUI phải kiểm MD5 trước/sau.
 
 ## LỊCH SỬ BẢN GẦN ĐÂY
@@ -13,9 +13,28 @@ Cập nhật: 2026-10-12
 |---|---|
 | v22.100.12 | Chia nhỏ request >36KB (502), nút đăng lại nhặt 502, chống trùng qua /series, fix `https://https://`, fix NameError `e` |
 | v22.100.13 | **Fix TREO khi đăng bài do LỆCH ĐỒNG HỒ** (3 lớp: giờ máy, bỏ mark tương lai, chờ tối đa 25s) |
+| v22.100.17 | **Option chế độ viết chapter** — tab Vilao AI khung "Hiệu suất": `batch` (mặc định, 2-2-2-1 song song như cũ) / `half` (chia đôi, 2 request chạy song song — nhanh ~1,8×, rẻ token ~2×) |
 | v22.100.16 | **Logo YouTube trên ảnh bìa website** — tab Image hosting: ô tick + kiểu `play`/`logo` + kích thước %, nút "Xem trước logo". Mặc định TẮT. Chỉ ảnh bìa web 290×290, KHÔNG đụng thumbnail Facebook |
 | v22.100.15 | **Vá crash PATH** — `configure_ffmpeg()` chỉ thêm ffmpeg vào PATH 1 lần (trước: mỗi video thêm 1 lần → nổ `ValueError` ở ~lần 454) |
 | v22.100.14 | **Không lưu thư mục frames** — tự xoá ảnh trung gian sau khi xong; có ô tick "Giữ lại thư mục frames" |
+
+## CHẾ ĐỘ VIẾT CHAPTER (v22.100.17) — SỐ ĐO THẬT
+Config key `chapter_gen_mode`, GUI ở tab **Vilao AI** → khung "Hiệu suất" → "Chế độ chapter".
+- `batch` (**mặc định**, y như cũ): nhóm 2 chapter/request, 2 request song song mỗi wave → 10 chương = 5 request.
+- `half`: chia đôi số chapter thành 2 request, **chạy song song** → 10 chương = 2 request.
+
+| Kiểu (10 chương) | Request | Thời gian thực | Token | TB từ/chương |
+|---|---|---|---|---|
+| 1 lần gọi cả 10 | 1 | 52,5s | 15.451 | 523 (chương cuối tụt còn 425) |
+| **half (5+5 song song)** | 2 | **32,0s** | **21.593** | **658** |
+| batch 2-2-2-1 | 5 | 57,3s | 44.603 | 854 |
+
+- `half` nhanh ~1,8× và rẻ token ~2× so với `batch` (vì lặp system prompt 2 lần thay vì 5).
+- Chương `batch` dài hơn (854 vs 658 từ) — `half` vẫn nằm trong khoảng yêu cầu 500-800.
+- **Chạy TUẦN TỰ thì vô nghĩa** (65s, còn chậm hơn 1 lần gọi) — `half` bắt buộc phải song song.
+- Số có dao động ±80 từ giữa các lần chạy; xu hướng rõ, số tuyệt đối thì mỗi bài một khác.
+- Đã verify: config CŨ (chưa có key) → tự về `batch`; giá trị lạ (`""`, `"xyz"`, `None`, số) → về `batch`. Không đổi hành vi cũ.
+- Key di sản `single_request_story` / `parallel_chapter_writing` / `chapter_workers` vẫn là **xác chết** (có trong DEFAULT_CONFIG, không dòng nào đọc) — không đụng tới.
 
 ## NGUYÊN NHÂN GỐC 502 `origin_bad_gateway` (đã chốt — QUAN TRỌNG)
 502 khi đăng Adsconex **KHÔNG phải do token, KHÔNG do payload bẩn**.
