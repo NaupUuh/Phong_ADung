@@ -1,10 +1,10 @@
-# TIẾP TỤC — Phong_ADung (v22.100.15)
+# TIẾP TỤC — Phong_ADung (v22.100.16)
 
 Cập nhật: 2026-10-12
 
 ## TRẠNG THÁI: CHẠY ỔN
 - File chính: `viet_drama_V22.99_stable_folder.py` (**LF-only**, py_compile OK, 7178 dòng).
-- Bản đang chạy: **v22.100.15**. GitHub + ổ Z đã đồng bộ (13/13 MD5 khớp).
+- Bản đang chạy: **v22.100.16**. GitHub + ổ Z đã đồng bộ (14/14 MD5 khớp).
 - Config thật: `C:\Users\Admin\.video_story_publisher_V22.99.json` (71 key, KHÔNG có placeholder).
 - **KHÔNG được ghi đè config này.** Test GUI phải kiểm MD5 trước/sau.
 
@@ -13,6 +13,7 @@ Cập nhật: 2026-10-12
 |---|---|
 | v22.100.12 | Chia nhỏ request >36KB (502), nút đăng lại nhặt 502, chống trùng qua /series, fix `https://https://`, fix NameError `e` |
 | v22.100.13 | **Fix TREO khi đăng bài do LỆCH ĐỒNG HỒ** (3 lớp: giờ máy, bỏ mark tương lai, chờ tối đa 25s) |
+| v22.100.16 | **Logo YouTube trên ảnh bìa website** — tab Image hosting: ô tick + kiểu `play`/`logo` + kích thước %, nút "Xem trước logo". Mặc định TẮT. Chỉ ảnh bìa web 290×290, KHÔNG đụng thumbnail Facebook |
 | v22.100.15 | **Vá crash PATH** — `configure_ffmpeg()` chỉ thêm ffmpeg vào PATH 1 lần (trước: mỗi video thêm 1 lần → nổ `ValueError` ở ~lần 454) |
 | v22.100.14 | **Không lưu thư mục frames** — tự xoá ảnh trung gian sau khi xong; có ô tick "Giữ lại thư mục frames" |
 
