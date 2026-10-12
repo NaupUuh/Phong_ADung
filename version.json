@@ -1,5 +1,5 @@
 {
-  "version": "22.100.16",
-  "notes": "Them option Logo YouTube o giua anh bia website (tab Image hosting, mac dinh TAT): kieu nut play hoac logo co chu YouTube, chinh duoc kich thuoc % chieu rong, co nut Xem truoc. Chi ap dung anh bia website 290x290 - KHONG dung thumbnail Facebook.",
+  "version": "22.100.17",
+  "notes": "Them option chon che do viet chapter (tab Vilao AI): batch = nhu hien tai 2-2-2-1 song song (mac dinh), half = chia doi chapter thanh 2 request chay song song (nhanh hon, re token hon). Mac dinh giu batch nen moi thu van nhu cu.",
   "date": "2026-10-12"
 }

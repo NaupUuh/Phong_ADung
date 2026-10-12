@@ -265,7 +265,7 @@ CRASH_LOG_FILE = Path.cwd() / "video_story_publisher_crash_V22.99.log"
 
 # Phiên bản tool. updater.py đọc dòng này để so với version.json trên GitHub;
 # release.py tự ghi lại mỗi lần phát hành bản mới.
-APP_VERSION = "22.100.16"
+APP_VERSION = "22.100.17"
 
 def _write_crash_log(title: str, exc_type=None, exc_value=None, exc_tb=None, extra: str = ""):
     """Write fatal/unhandled errors to a persistent text file."""
@@ -332,6 +332,7 @@ FIXED_PRODUCTION_SETTINGS = {
     "max_story_chapters": "10",
     "target_words_per_chapter": "500",
     "chapter_tolerance_percent": "10",
+    "chapter_gen_mode": "batch",
     "single_request_story": False,
     "parallel_chapter_writing": True,
     "chapter_workers": "4",
@@ -442,6 +443,7 @@ DEFAULT_CONFIG = {
     "chapter_workers": "4",
     "parallel_chapter_writing": True,
     "fast_writer_batches": True,
+    "chapter_gen_mode": "batch",
     "single_request_story": False,
     "min_words_each_chapter": "450",
     "max_words_each_chapter": "550",
@@ -3356,7 +3358,9 @@ Return STRICT JSON only:
 
     def write_story(self, analysis: dict, transcript: str) -> dict:
         """
-        Write the architecture first, then write its 6-10 chapters in small batches.
+        Write the architecture first, then write its 6-10 chapters.
+        - chapter_gen_mode "batch": 2 chapters per request, 2 requests per wave (default).
+        - chapter_gen_mode "half": split into 2 requests run in parallel (faster, cheaper).
         - Retry each batch independently.
         - Missing chapters are regenerated individually in parallel.
         - Short chapters are expanded individually instead of failing the whole article.
@@ -3421,8 +3425,12 @@ Return STRICT JSON only:
 
         self.progress(70, f"Writing {chapter_count} chapters")
         fast_batches = bool(self.cfg.get("fast_writer_batches", True))
-        self._log(f"Writer: {len(batches)} batches; "
-                  f"{'2 parallel batches per wave' if fast_batches else 'sequential'}; retries enabled")
+        _gen_preview = str(self.cfg.get("chapter_gen_mode", "batch") or "batch").strip().lower()
+        if _gen_preview == "half":
+            self._log(f"Writer: {chapter_count} chapters -> 2 request chia doi, chay song song")
+        else:
+            self._log(f"Writer: {len(batches)} batches; "
+                      f"{'2 parallel batches per wave' if fast_batches else 'sequential'}; retries enabled")
 
         collected = {}
         batch_errors = []
@@ -3450,7 +3458,26 @@ Return STRICT JSON only:
                     collected[n] = ch
             self._log(f"Batch Ch{nums[0]}-{nums[-1]} finished | got {len(result)} chapter object(s)")
 
-        if fast_batches:
+        # V22.100.17: chế độ tạo chapter (tab "Kết nối & Model").
+        #   "batch" = nhóm 2 chapter/request, chạy song song 2 nhóm mỗi wave (mặc định, y như cũ)
+        #   "half"  = chia đôi số chapter thành 2 request, chạy SONG SONG (nhanh + rẻ token hơn)
+        gen_mode = str(self.cfg.get("chapter_gen_mode", "batch") or "batch").strip().lower()
+        if gen_mode not in ("batch", "half"):
+            gen_mode = "batch"
+        self._log(f"Writer: chế độ chapter = {gen_mode}")
+
+        if gen_mode == "half" and chapter_count >= 2:
+            half_point = (chapter_count + 1) // 2
+            groups = [chapter_sources[:half_point], chapter_sources[half_point:]]
+            with ThreadPoolExecutor(max_workers=len(groups)) as ex:
+                futures = {ex.submit(self._write_chapter_batch, analysis, g, []): g for g in groups}
+                for fut in as_completed(futures):
+                    grp = futures[fut]
+                    try:
+                        receive_batch(grp, result=fut.result())
+                    except Exception as exc:
+                        receive_batch(grp, error=exc)
+        elif fast_batches:
             for wave in range(0, len(batches), 2):
                 wave_batches = batches[wave:wave + 2]
                 context = prior_context()
@@ -5607,8 +5634,14 @@ class App(tk.Tk):
         compact_row(ai_performance, 1, "Vision batch size", "vision_batch_size")
         compact_row(ai_performance, 2, "Frame workers", "frame_workers")
         compact_row(ai_performance, 3, "Vision workers", "vision_parallel_workers")
+        ttk.Label(ai_performance, text="Chế độ chapter", width=17,
+                  font=("Segoe UI", 9)).grid(row=4, column=0, sticky="w", pady=2)
+        ttk.Combobox(
+            ai_performance, textvariable=self.vars["chapter_gen_mode"],
+            values=("batch", "half"), state="readonly", width=22
+        ).grid(row=4, column=1, sticky="ew", padx=(4, 0), pady=2)
         ttk.Checkbutton(
-            ai, text="Viết nhanh: chạy song song 2 nhóm chapter theo dàn ý",
+            ai, text="Viết nhanh: chạy song song 2 nhóm chapter theo dàn ý (chỉ dùng cho chế độ batch)",
             variable=self.vars["fast_writer_batches"],
         ).grid(row=1, column=0, columnspan=2, sticky="w", pady=4)
 
