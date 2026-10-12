@@ -1,5 +1,5 @@
 {
-  "version": "22.100.15",
-  "notes": "VA LOI: 'ValueError: the environment variable is longer than 32767 characters'. configure_ffmpeg() truoc day prepend thu muc ffmpeg vao PATH MOI LAN goi - ma ham nay duoc goi lai cho TUNG video (moi StoryPipeline), nen chay batch nhieu video thi PATH phinh dan roi no (da gap that: no o lan goi thu ~454). Nay chi them 1 lan duy nhat (kiem tra da co trong PATH chua) va bat ValueError de khong bao gio crash. ffmpeg van duoc tim thay vi exe_path() dung duong dan tuyet doi.",
+  "version": "22.100.16",
+  "notes": "Them option Logo YouTube o giua anh bia website (tab Image hosting, mac dinh TAT): kieu nut play hoac logo co chu YouTube, chinh duoc kich thuoc % chieu rong, co nut Xem truoc. Chi ap dung anh bia website 290x290 - KHONG dung thumbnail Facebook.",
   "date": "2026-10-12"
 }
