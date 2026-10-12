@@ -265,7 +265,7 @@ CRASH_LOG_FILE = Path.cwd() / "video_story_publisher_crash_V22.99.log"
 
 # Phiên bản tool. updater.py đọc dòng này để so với version.json trên GitHub;
 # release.py tự ghi lại mỗi lần phát hành bản mới.
-APP_VERSION = "22.100.14"
+APP_VERSION = "22.100.15"
 
 def _write_crash_log(title: str, exc_type=None, exc_value=None, exc_tb=None, extra: str = ""):
     """Write fatal/unhandled errors to a persistent text file."""
@@ -1379,7 +1379,18 @@ def configure_ffmpeg(ffmpeg_bin: str = ""):
         if (folder / "ffmpeg.exe").exists():
             FFMPEG_BIN = str(folder)
             # Make subprocess/OpenCV child processes able to see it as well.
-            os.environ["PATH"] = str(folder) + os.pathsep + os.environ.get("PATH", "")
+            # CHI them 1 LAN: configure_ffmpeg() duoc goi lai cho MOI video
+            # (moi StoryPipeline), nen prepend vo dieu kien lam PATH phinh dan.
+            # Windows gioi han bien moi truong 32767 ky tu -> ValueError
+            # (da gap that: no o lan goi thu ~454 khi chay batch nhieu video).
+            _ff = str(folder)
+            _cur = os.environ.get("PATH", "")
+            if _ff and _ff.casefold() not in _cur.casefold():
+                try:
+                    os.environ["PATH"] = _ff + os.pathsep + _cur
+                except ValueError:
+                    # PATH qua dai: van chay duoc vi exe_path() dung duong dan tuyet doi.
+                    pass
             return str(folder)
 
     # PATH fallback
