@@ -265,7 +265,7 @@ CRASH_LOG_FILE = Path.cwd() / "video_story_publisher_crash_V22.99.log"
 
 # Phiên bản tool. updater.py đọc dòng này để so với version.json trên GitHub;
 # release.py tự ghi lại mỗi lần phát hành bản mới.
-APP_VERSION = "22.100.17"
+APP_VERSION = "22.100.18"
 
 def _write_crash_log(title: str, exc_type=None, exc_value=None, exc_tb=None, extra: str = ""):
     """Write fatal/unhandled errors to a persistent text file."""
@@ -326,7 +326,9 @@ FIXED_PRODUCTION_SETTINGS = {
     "fast_whisper_beam_size": "1",
 
     # Story
-    "language": "English",
+    # "language"/"language_enabled" KHONG nam o day: nguoi dung chon ngon ngu o
+    # tab SmartTraffic. Neu ghim o day, apply_fixed_production_settings() se GHI DE
+    # lua chon cua nguoi dung -> ngon ngu KHONG BAO GIO doi du da tich.
     "fast_story_mode": True,
     "min_story_chapters": "6",
     "max_story_chapters": "10",
@@ -393,6 +395,367 @@ DEFAULT_FILENAME_PHRASES = "\n".join([
     "CONTINUE WATCHING HERE",
 ])
 
+# ---------------------------------------------------------------------------
+# NGON NGU BAI VIET (tich o tab SmartTraffic; ap cho MOI truyen + moi chapter)
+# ---------------------------------------------------------------------------
+# Nhan o day chi de hien thi; gia tri luu trong config la KEY (xem ben duoi).
+LANGUAGE_OPTIONS = [
+    ("English", "English"),
+    ("Vietnamese (Tiếng Việt)", "Vietnamese"),
+    ("Spanish (Español)", "Spanish"),
+    ("Portuguese (Português)", "Portuguese"),
+    ("French (Français)", "French"),
+    ("German (Deutsch)", "German"),
+    ("Italian (Italiano)", "Italian"),
+    ("Indonesian (Bahasa Indonesia)", "Indonesian"),
+    ("Thai (ภาษาไทย)", "Thai"),
+    ("Filipino (Tagalog)", "Filipino"),
+    ("Hindi (हिन्दी)", "Hindi"),
+    ("Arabic (العربية)", "Arabic"),
+    ("Turkish (Türkçe)", "Turkish"),
+    ("Japanese (日本語)", "Japanese"),
+    ("Korean (한국어)", "Korean"),
+    ("Chinese (中文)", "Chinese"),
+]
+
+LANGUAGE_KEYS = [key for _label, key in LANGUAGE_OPTIONS]
+LANGUAGE_LABELS = {key: label for label, key in LANGUAGE_OPTIONS}
+LANGUAGE_LABEL_TO_KEY = {label: key for label, key in LANGUAGE_OPTIONS}
+
+# Cau chen trong ten file theo TUNG NGON NGU (dung khi nguoi dung chua tu nhap
+# danh sach rieng trong o 'Cau chien trong ten file'). Ten file la thu hien ra
+# cho nguoi xem, nen phai cung ngon ngu voi truyen.
+DEFAULT_FILENAME_PHRASES_BY_LANGUAGE = {
+    "English": DEFAULT_FILENAME_PHRASES,
+    "Vietnamese": "\n".join([
+        "PHẦN 2 & KẾT THÚC TRỌN BỘ", "XEM PHẦN TIẾP THEO TẠI ĐÂY",
+        "CHUYỆN GÌ XẢY RA TIẾP? XEM TẠI ĐÂY", "XEM TRỌN BỘ PHIM TẠI ĐÂY",
+        "XEM KẾT THÚC NHƯ THẾ NÀO", "XEM TIẾP TẠI ĐÂY",
+    ]),
+    "Spanish": "\n".join([
+        "PARTE 2 Y FINAL COMPLETO", "MIRA LA SIGUIENTE PARTE AQUÍ",
+        "¿QUÉ PASA DESPUÉS? MÍRALO AQUÍ", "MIRA LA HISTORIA COMPLETA AQUÍ",
+        "DESCUBRE CÓMO TERMINA", "SIGUE VIENDO AQUÍ",
+    ]),
+    "Portuguese": "\n".join([
+        "PARTE 2 E FINAL COMPLETO", "ASSISTA À PRÓXIMA PARTE AQUI",
+        "O QUE ACONTECE DEPOIS? VEJA AQUI", "ASSISTA À HISTÓRIA COMPLETA AQUI",
+        "VEJA COMO TERMINA", "CONTINUE ASSISTINDO AQUI",
+    ]),
+    "French": "\n".join([
+        "PARTIE 2 ET FIN COMPLÈTE", "REGARDEZ LA SUITE ICI",
+        "QUE SE PASSE-T-IL ENSUITE ? VOIR ICI", "REGARDEZ L'HISTOIRE COMPLÈTE ICI",
+        "VOYEZ COMMENT ÇA FINIT", "CONTINUEZ À REGARDER ICI",
+    ]),
+    "German": "\n".join([
+        "TEIL 2 & KOMPLETTES ENDE", "HIER DEN NÄCHSTEN TEIL ANSEHEN",
+        "WAS PASSIERT ALS NÄCHSTES? HIER ANSEHEN", "HIER DIE GANZE GESCHICHTE ANSEHEN",
+        "SIEH, WIE ES ENDET", "HIER WEITERSCHAUEN",
+    ]),
+    "Italian": "\n".join([
+        "PARTE 2 E FINALE COMPLETO", "GUARDA LA PROSSIMA PARTE QUI",
+        "COSA SUCCEDE DOPO? GUARDA QUI", "GUARDA LA STORIA COMPLETA QUI",
+        "SCOPRI COME FINISCE", "CONTINUA A GUARDARE QUI",
+    ]),
+    "Indonesian": "\n".join([
+        "BAGIAN 2 & AKHIR CERITA", "TONTON BAGIAN SELANJUTNYA DI SINI",
+        "APA YANG TERJADI SELANJUTNYA? TONTON DI SINI", "TONTON CERITA LENGKAPNYA DI SINI",
+        "LIHAT BAGAIMANA AKHIRNYA", "LANJUT TONTON DI SINI",
+    ]),
+    "Thai": "\n".join([
+        "ภาค 2 และตอนจบ", "ดูตอนต่อไปได้ที่นี่",
+        "เกิดอะไรขึ้นต่อ? ดูที่นี่", "ดูเรื่องเต็มได้ที่นี่",
+        "ดูว่าจบอย่างไร", "ดูต่อที่นี่",
+    ]),
+    "Filipino": "\n".join([
+        "PART 2 AT BUONG PAGWAWAKAS", "PANONOORIN ANG SUSUNOD NA BAHAGI DITO",
+        "ANO ANG SUSUNOD? PANOORIN DITO", "PANONOORIN ANG BUONG KUWENTO DITO",
+        "TINGNAN KUNG PAANO NAGWAKAS", "MAGPATULOY SA PANONOOD DITO",
+    ]),
+    "Hindi": "\n".join([
+        "भाग 2 और पूरा अंत", "अगला भाग यहाँ देखें",
+        "आगे क्या हुआ? यहाँ देखें", "पूरी कहानी यहाँ देखें",
+        "देखें कैसे खत्म होता है", "यहाँ देखते रहें",
+    ]),
+    "Arabic": "\n".join([
+        "الجزء 2 والنهاية الكاملة", "شاهد الجزء التالي هنا",
+        "ماذا حدث بعد ذلك؟ شاهد هنا", "شاهد القصة كاملة هنا",
+        "شاهد كيف تنتهي", "تابع المشاهدة هنا",
+    ]),
+    "Turkish": "\n".join([
+        "2. BÖLÜM VE TAM FİNAL", "SONRAKİ BÖLÜMÜ BURADA İZLE",
+        "SONRA NE OLUYOR? BURADA İZLE", "TÜM HİKÂYEYİ BURADA İZLE",
+        "NASIL BİTTİĞİNİ GÖR", "BURADA İZLEMEYE DEVAM ET",
+    ]),
+    "Japanese": "\n".join([
+        "パート2と完全な結末", "続きはこちらで視聴",
+        "この後どうなる？こちらで視聴", "全話はこちらで視聴",
+        "結末を見る", "続きを視聴する",
+    ]),
+    "Korean": "\n".join([
+        "2부와 완전한 결말", "다음 편은 여기서 보기",
+        "그다음엔 어떻게? 여기서 보기", "전체 이야기는 여기서 보기",
+        "결말 보기", "여기서 계속 보기",
+    ]),
+    "Chinese": "\n".join([
+        "第2部分与完整结局", "在这里观看下一部分",
+        "接下来会发生什么？在这里观看", "在这里观看完整故事",
+        "看看结局如何", "在这里继续观看",
+    ]),
+}
+
+
+def fallback_hashtags_for_language(language_key: str) -> list:
+    """Hashtag du phong khi AI khong tra du 3 the.
+
+    Phai la ASCII (khong dau) vi ten file di qua o mang/WebDAV.
+    """
+    lang = str(language_key or "English").strip() or "English"
+    table = {
+        "English": ["#story", "#drama", "#fullstory"],
+        "Vietnamese": ["#truyen", "#tamly", "#fullstory"],
+        "Spanish": ["#historia", "#drama", "#final"],
+        "Portuguese": ["#historia", "#drama", "#final"],
+        "French": ["#histoire", "#drame", "#final"],
+        "German": ["#geschichte", "#drama", "#finale"],
+        "Italian": ["#storia", "#dramma", "#finale"],
+        "Indonesian": ["#cerita", "#drama", "#akhir"],
+        "Thai": ["#story", "#drama", "#ending"],
+        "Filipino": ["#kuwento", "#drama", "#wakas"],
+        "Hindi": ["#kahani", "#drama", "#ending"],
+        "Arabic": ["#story", "#drama", "#ending"],
+        "Turkish": ["#hikaye", "#dram", "#final"],
+        "Japanese": ["#story", "#drama", "#ending"],
+        "Korean": ["#story", "#drama", "#ending"],
+        "Chinese": ["#story", "#drama", "#ending"],
+    }
+    return list(table.get(lang, table["English"]))
+
+
+# Tap hop MOI danh sach mac dinh (moi ngon ngu). Dung de phan biet "tool tu dien"
+# voi "nguoi dung tu nhap": neu o dang chua dung mot trong cac ban mac dinh nay thi
+# coi nhu tool quan ly -> phai doi theo ngon ngu dang chon.
+_ALL_DEFAULT_PHRASE_SETS = {
+    "\n".join(re.sub(r"\s+", " ", ln).strip(" .;") for ln in v.split("\n") if ln.strip())
+    for v in DEFAULT_FILENAME_PHRASES_BY_LANGUAGE.values()
+}
+_ALL_DEFAULT_PHRASE_SETS.add(
+    "\n".join(re.sub(r"\s+", " ", ln).strip(" .;") for ln in DEFAULT_FILENAME_PHRASES.split("\n") if ln.strip()))
+
+
+def _is_default_phrase_list(raw: str) -> bool:
+    """True khi o 'Cau chien trong ten file' dang chua ban mac dinh (cua BAT KY
+    ngon ngu nao) hoac de trong -> tool duoc phep tu doi theo ngon ngu."""
+    norm = "\n".join(re.sub(r"\s+", " ", ln).strip(" .;")
+                     for ln in str(raw or "").replace("\r", "\n").split("\n") if ln.strip())
+    return (not norm) or (norm in _ALL_DEFAULT_PHRASE_SETS)
+
+
+def filename_phrases_for_language(cfg: dict) -> str:
+    """Danh sach cau chen ten file theo ngon ngu dang chon.
+
+    Neu nguoi dung da TU NHAP danh sach rieng thi giu nguyen (ton trong y nguoi
+    dung). Neu o dang chua ban mac dinh cua bat ky ngon ngu nao (ke ca ban da bi
+    luu tu lan doi ngon ngu truoc) thi tra ve ban dung ngon ngu dang chon.
+    """
+    raw = str((cfg or {}).get("filename_phrase_list") or "").strip()
+    if raw and not _is_default_phrase_list(raw):
+        return raw
+    lang = effective_language(cfg)
+    return DEFAULT_FILENAME_PHRASES_BY_LANGUAGE.get(lang, DEFAULT_FILENAME_PHRASES)
+
+
+def language_label(language_key: str) -> str:
+    """Nhan hien thi cua mot ngon ngu; nhan la thi tra ve nguyen van."""
+    key = str(language_key or "").strip()
+    return LANGUAGE_LABELS.get(key, key or "English")
+
+
+def language_prompt_name(language_key: str) -> str:
+    """Ten ngon ngu gon (bo phan trong ngoac) de dua vao prompt.
+
+    Nhan hien thi la "Japanese (日本語)" nhung trong prompt chi nen ghi
+    "Japanese" cho sach, tranh tron ky tu vao cau lenh.
+    """
+    label = language_label(language_key)
+    return label.split(" (")[0].strip() or "English"
+
+
+def effective_language(cfg) -> str:
+    """Ngon ngu thuc su dung: KHONG tich 'language_enabled' -> luon tieng Anh."""
+    try:
+        enabled = bool((cfg or {}).get("language_enabled", False))
+    except Exception:
+        enabled = False
+    if not enabled:
+        return "English"
+    key = str((cfg or {}).get("language") or "English").strip() or "English"
+    return key if key in LANGUAGE_LABELS else "English"
+
+
+def strip_language_rules(prompt: str, language_key: str) -> str:
+    """Bo MOI cau ghim ngon ngu trong prompt goc khi nguoi dung da chon ngon ngu.
+
+    Prompt goc ghim tieng Anh o vai cho ("viet bang English", "natural American
+    English", "doc gia My/Au"...). Neu de nguyen thi model nhan 2 lenh trai nhau
+    va ket qua lai ra tieng Anh. Ham nay thay cac cau do bang ngon ngu da chon,
+    nen truyen chi theo DUNG MOT ngon ngu, mac ke video/kich ban goc la gi.
+    """
+    label = language_prompt_name(language_key)
+    if not prompt:
+        return prompt or ""
+    if label == "English":
+        return prompt  # Mac dinh: giu nguyen prompt goc, khong dung tới.
+
+    out = prompt
+    replacements = [
+        # Prompt goc (tieng Viet, viet bang \n that trong chuoi)
+        ("Full Story và Caption viết bằng **English**.",
+         f"Full Story và Caption viết bằng **{label}**."),
+        ("Ưu tiên **natural American English**.",
+         f"Ưu tiên văn phong tự nhiên của người bản xứ {label}."),
+        ("Tên tiếng Anh tự nhiên, dễ hiểu với người Mỹ, tạo tò mò nhưng không spoil kết thúc.",
+         f"Tên truyện viết bằng {label}, tự nhiên, dễ hiểu, tạo tò mò nhưng không spoil kết thúc."),
+        ("dành cho độc giả Mỹ/Âu, đặc biệt nhóm trung niên và lớn tuổi",
+         f"dành cho độc giả nói tiếng {label}, đặc biệt nhóm trung niên và lớn tuổi"),
+        # Addendum tieng Anh
+        ("Write the FULL BLOG STORY in natural American English",
+         f"Write the FULL BLOG STORY in {label}"),
+        ("Use natural American English, about 180-300 words.",
+         f"Use {label}, about 180-300 words."),
+    ]
+    for old, new in replacements:
+        out = out.replace(old, new)
+    return out
+
+
+def language_instruction(language_key: str) -> str:
+    """Chi thi ngon ngu, noi vao MOI loi goi Writer.
+
+    Khong co phan nay thi model tu do tra loi bang tieng Anh (theo prompt goc),
+    nen phai nhac ro va nhac lai o tung request: story architecture, tung batch
+    chapter, metadata, Facebook caption va tieu de video.
+    """
+    label = language_prompt_name(language_key)
+    if label == "English":
+        # Mac dinh: giu nguyen hanh vi cu, khong them chi thi nao.
+        return ""
+    return (
+        "\n\n# NGON NGU BAT BUOC — AP CHO TOAN BO TRUYEN\n"
+        f"Write EVERYTHING in {label}: the story title, the meta title, the meta description, "
+        f"the keywords, every chapter title, every chapter body, and the Facebook caption.\n"
+        f"VIET TOAN BO BANG {label}: ten truyen, meta title, meta description, keywords, "
+        f"tieu de TUNG chapter, noi dung TUNG chapter va caption Facebook. "
+        f"KHONG duoc tron ngon ngu khac, KHONG giu lai cau tieng Anh nao, KE CA khi nguon "
+        f"(kich ban / hook video) dang la tieng Anh — phai dich va viet lai sang {label}.\n"
+        "Keep proper nouns (character names, place names, brand names) in their original form; "
+        "do not translate them.\n"
+        f"RULES ABOVE THAT MENTION ENGLISH OR AMERICAN ENGLISH ARE OVERRIDDEN: the language to "
+        f"use is {label}.\n"
+        f"Chapter headings keep the tool's exact format (the word \"Chapter\" + number), but the "
+        f"chapter TITLE and BODY are written in {label}."
+    )
+
+
+# Cau ket caption (CTA). Phai dich theo ngon ngu, neu khong caption se bi tron
+# ngon ngu: than bai tieng Nhat ma cau cuoi lai tieng Anh.
+CAPTION_CTA = {
+    "English": "Read the full story — link in the comments.",
+    "Vietnamese": "Đọc trọn câu chuyện — link ở phần bình luận.",
+    "Spanish": "Lee la historia completa — enlace en los comentarios.",
+    "Portuguese": "Leia a história completa — link nos comentários.",
+    "French": "Lisez l'histoire complète — lien dans les commentaires.",
+    "German": "Lies die ganze Geschichte — Link in den Kommentaren.",
+    "Italian": "Leggi la storia completa — link nei commenti.",
+    "Indonesian": "Baca cerita lengkapnya — link ada di komentar.",
+    "Thai": "อ่านเรื่องเต็มได้ที่ลิงก์ในคอมเมนต์",
+    "Filipino": "Basahin ang buong kuwento — nasa komento ang link.",
+    "Hindi": "पूरी कहानी पढ़ें — लिंक कमेंट में है।",
+    "Arabic": "اقرأ القصة كاملة — الرابط في التعليقات.",
+    "Turkish": "Hikâyenin tamamını okuyun — bağlantı yorumlarda.",
+    "Japanese": "全文はコメント欄のリンクから。",
+    "Korean": "전체 이야기는 댓글의 링크에서 확인하세요.",
+    "Chinese": "完整故事请看评论区的链接。",
+}
+ALL_CTAS = sorted(set(CAPTION_CTA.values()), key=len, reverse=True)
+
+# Dau hieu ngoi thu nhat theo tung ngon ngu. Bo kiem tra caption truoc day CHI
+# nhan dai tu tieng Anh (I/my/me/we/our) nen caption tieng Viet/Nhat/... luon bi
+# loai oan roi bao loi "Caption chua dat giong ke ngoi thu nhat".
+FIRST_PERSON_MARKERS = {
+    "English": ["I", "my", "me", "we", "our"],
+    "Vietnamese": ["tôi", "mình", "tớ", "chúng tôi", "của tôi", "em", "con"],
+    "Spanish": ["yo", "mi", "mis", "me", "nosotros"],
+    "Portuguese": ["eu", "meu", "minha", "meus", "minhas", "nós"],
+    "French": ["je", "moi", "mon", "ma", "mes", "nous"],
+    "German": ["ich", "mein", "meine", "meiner", "mir", "wir", "uns"],
+    "Italian": ["io", "mio", "mia", "miei", "noi", "mi"],
+    "Indonesian": ["saya", "aku", "kami", "kita"],
+    "Thai": ["ฉัน", "ผม", "เรา", "หนู", "ดิฉัน"],
+    "Filipino": ["ako", "ko", "akin", "kami", "namin"],
+    "Hindi": ["मैं", "मेरा", "मेरी", "मुझे", "हम"],
+    "Arabic": ["أنا", "لي", "نحن", "أنني"],
+    "Turkish": ["ben", "benim", "bana", "biz", "bizi"],
+    "Japanese": ["私", "僕", "俺", "わたし", "ぼく", "私たち"],
+    "Korean": ["나", "저", "내", "제", "우리"],
+    "Chinese": ["我", "我们", "我的", "咱們"],
+}
+
+# Ngon ngu khong dan cach bang dau cach -> do do dai bang KY TU, khong phai "tu".
+NO_SPACE_LANGUAGES = {"Japanese", "Korean", "Chinese", "Thai"}
+
+# Ngon ngu "pro-drop": nguoi ke thuong BO dai tu ("Todavia recuerdo..." thay vi
+# "Yo todavia recuerdo..."). Chi kiem dai tu la se loai oan caption dung.
+# Them dong tu ngoi thu nhat de nhan dien.
+FIRST_PERSON_VERBS = {
+    "Spanish": [
+        "recuerdo", "conduje", "supe", "vi", "dije", "tenia", "estaba", "fui", "era",
+        "se", "creo", "quiero", "puedo", "debo", "pienso", "siento", "mire", "llegue",
+        "quede", "conte", "descubri", "decidi", "llame", "oi", "escuche", "entendi",
+        "pense", "hable", "tome", "deje", "volvi", "sali", "entre", "perdi", "encontre",
+        "empece", "termine", "espere", "necesite", "pude", "tuve", "hice", "vine",
+        "puse", "traje", "sabia", "queria", "podia", "hacia", "decia", "veia", "venia",
+        "tengo", "hago", "veo", "vengo", "digo", "pongo", "conozco", "entiendo",
+    ],
+    "Italian": [
+        "ricordo", "sapevo", "vidi", "dissi", "avevo", "ero", "so", "credo", "voglio",
+        "posso", "devo", "penso", "sento", "guardai", "arrivai", "restai", "raccontai",
+        "scoprii", "decisi", "chiamai", "udii", "ascoltai", "capii", "pensai", "parlai",
+        "presi", "lasciai", "tornai", "uscii", "entrai", "persi", "trovai", "iniziai",
+        "finii", "aspettai", "ebbi", "feci", "venni", "misi", "portai", "conosco",
+    ],
+    "Portuguese": [
+        "lembro", "conduzi", "soube", "vi", "disse", "tinha", "estava", "fui", "era",
+        "sei", "creio", "quero", "posso", "devo", "penso", "sinto", "olhei", "cheguei",
+        "fiquei", "contei", "descobri", "decidi", "chamei", "ouvi", "escutei", "entendi",
+        "pensei", "falei", "tomei", "deixei", "voltei", "sai", "entrei", "perdi",
+        "encontrei", "comecei", "terminei", "esperei", "precisei", "pude", "tive",
+        "fiz", "vim", "pus", "trouxe", "sabia", "queria", "podia", "fazia", "dizia",
+        "via", "vinha", "tenho", "faco", "vejo", "venho", "digo", "conheco", "entendo",
+    ],
+}
+
+
+# Cau nhac viet lai caption, dich theo ngon ngu.
+CAPTION_REWRITE_NOTE = {
+    "English": "REWRITE: First-person personal confession, 180-300 words, one sentence or dialogue line per paragraph, each separated by a blank line; no scene or camera descriptions. Keep the same established facts and open loop.",
+    "Vietnamese": "VIẾT LẠI: Lời tự thuật ngôi thứ nhất, 180-300 từ, mỗi câu hoặc lời thoại một đoạn, cách nhau bằng dòng trống; không mô tả cảnh quay hay máy quay. Giữ nguyên các tình tiết đã có và giữ nguyên open loop.",
+    "Spanish": "REESCRIBE: Confesión personal en primera persona, 180-300 palabras, una frase o línea de diálogo por párrafo, separadas por una línea en blanco; sin descripciones de escena ni de cámara. Mantén los mismos hechos y el mismo open loop.",
+    "Portuguese": "REESCREVA: Confissão pessoal em primeira pessoa, 180-300 palavras, uma frase ou fala por parágrafo, separadas por uma linha em branco; sem descrições de cena ou câmera. Mantenha os mesmos fatos e o mesmo open loop.",
+    "French": "RÉÉCRIVEZ : Confession personnelle à la première personne, 180-300 mots, une phrase ou une réplique par paragraphe, séparées par une ligne vide ; aucune description de scène ni de caméra. Gardez les mêmes faits et le même open loop.",
+    "German": "NEU SCHREIBEN: Persönliches Geständnis in der Ich-Form, 180-300 Wörter, ein Satz oder eine Dialogzeile pro Absatz, durch eine Leerzeile getrennt; keine Szenen- oder Kamerabeschreibungen. Behalte dieselben Fakten und denselben Open Loop.",
+    "Italian": "RISCRIVI: Confessione personale in prima persona, 180-300 parole, una frase o battuta per paragrafo, separate da una riga vuota; nessuna descrizione di scena o di camera. Mantieni gli stessi fatti e lo stesso open loop.",
+    "Indonesian": "TULIS ULANG: Pengakuan pribadi orang pertama, 180-300 kata, satu kalimat atau dialog per paragraf, dipisah baris kosong; tanpa deskripsi adegan atau kamera. Pertahankan fakta dan open loop yang sama.",
+    "Thai": "เขียนใหม่: คำสารภาพส่วนตัวในมุมมองบุคคลที่หนึ่ง 180-300 คำ ประโยคหรือบทสนทนาละหนึ่งย่อหน้า คั่นด้วยบรรทัดว่าง ไม่บรรยายฉากหรือกล้อง รักษาข้อเท็จจริงและ open loop เดิมไว้",
+    "Filipino": "ISULAT MULI: Personal na pagtatapat sa unang panauhan, 180-300 salita, isang pangungusap o dayalogo bawat talata, pinaghihiwalay ng blangkong linya; walang paglalarawan ng eksena o kamera. Panatilihin ang parehong mga detalye at open loop.",
+    "Hindi": "फिर से लिखें: प्रथम पुरुष में व्यक्तिगत स्वीकारोक्ति, 180-300 शब्द, प्रत्येक पैराग्राफ में एक वाक्य या संवाद, बीच में खाली पंक्ति; दृश्य या कैमरा विवरण नहीं। वही तथ्य और open loop बनाए रखें।",
+    "Arabic": "أعد الكتابة: اعتراف شخصي بصيغة المتكلم، 180-300 كلمة، جملة أو سطر حوار لكل فقرة، تفصل بينها سطر فارغ؛ دون وصف للمشهد أو الكاميرا. حافظ على الوقائع نفسها وopen loop نفسه.",
+    "Turkish": "YENİDEN YAZ: Birinci tekil şahıstan kişisel itiraf, 180-300 kelime, her paragrafta bir cümle veya diyalog satırı, aralarında boş satır; sahne veya kamera betimlemesi yok. Aynı olayları ve aynı open loop'u koru.",
+    "Japanese": "書き直し: 一人称の個人的な告白、180〜300語、1文またはセリフごとに1段落とし、段落の間は空行で区切る。場面やカメラの描写は入れない。同じ事実と open loop を維持すること。",
+    "Korean": "다시 쓰기: 1인칭 개인적 고백, 180-300단어, 문장 또는 대사 하나당 한 문단, 문단 사이는 빈 줄로 구분; 장면이나 카메라 묘사 금지. 동일한 사실과 open loop를 유지할 것.",
+    "Chinese": "重写：第一人称的个人自白，180-300 字，每段一句或一句对白，段间空一行；不要场景或镜头描写。保持相同的事实和 open loop。",
+}
+
 DEFAULT_CONFIG = {
     "vilao_base_url": "https://api.vilao.ai/v1",
     "vilao_api_key": "",
@@ -416,6 +779,15 @@ DEFAULT_CONFIG = {
     "adsconex_rate_limit_per_min": "6",
     "adsconex_rate_shared_path": "",
     "adsconex_rate_fallback_delay": "15",
+    "slink_api_key": "",
+    "slink_base_url": "https://fableon.treeiq.biz/api",
+    "slink_site_host": "fableon.treeiq.biz",
+    "slink_site_id": "724",
+    "slink_category": "266",
+    "slink_status": "published",
+    "slink_retry_count": "3",
+    "slink_retry_delay": "30",
+    "language_enabled": False,
     "language": "English",
     "whisper_model": "small",
     "whisper_device": "cpu",
@@ -1008,6 +1380,125 @@ def _adsconex_has_published(work_dir) -> bool:
         return False
 
 
+# ---------------------------
+# Slink (fableon): luu payload bai loi de dang lai, khong ton Vision/Writer
+# ---------------------------
+SLINK_PENDING_FILE = "publish_pending_slink.json"
+
+
+def slink_pending_path(work_dir):
+    return Path(work_dir) / SLINK_PENDING_FILE
+
+
+def slink_write_pending(work_dir, payload: dict, status, detail: str = "") -> None:
+    """Ghi payload bai Slink dang loi (network/502/503/504/429) de lan sau dang lai.
+
+    fableon tao bai NGAY khi nhan POST /api/posts/chapter, nen chi luu khi CHAC CHAN
+    chua tao duoc bai (loi mang hoac 5xx/429 tu Cloudflare/origin). Loi 401/403/422
+    tra ve ngay tu Laravel -> khong tao bai -> van luu de dang lai an toan.
+    """
+    if not work_dir or not isinstance(payload, dict) or not payload.get("chapters"):
+        return
+    try:
+        Path(work_dir).mkdir(parents=True, exist_ok=True)
+        _safe_write_text(
+            slink_pending_path(work_dir),
+            json.dumps({
+                "http_status": status,
+                "detail": str(detail)[:800],
+                "saved_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "machine": platform.node(),
+                "payload": payload,
+            }, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except Exception:
+        pass
+
+
+def slink_clear_pending(work_dir) -> None:
+    """Xoa dau 'con bai loi' khi da dang thanh cong."""
+    if not work_dir:
+        return
+    try:
+        slink_pending_path(work_dir).unlink()
+    except OSError:
+        pass
+    except Exception:
+        pass
+
+
+def slink_existing_slugs(cfg) -> set:
+    """Slug cua MOI bai da co tren site fableon (GET /posts).
+
+    Dung de TRANH dang trung: neu bai da ton tai (502 la loi gia) thi bo qua.
+    Loi goi API -> tra set rong (khong chan dang lai).
+    """
+    try:
+        base = str((cfg or {}).get("slink_base_url") or "https://fableon.treeiq.biz/api").strip().rstrip("/")
+        token = str((cfg or {}).get("slink_api_key") or "").strip()
+        if not token:
+            return set()
+        host = urlsplit(base).netloc or "fableon.treeiq.biz"
+        headers = {
+            "Accept": "application/json",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Authorization": f"Bearer {token}",
+            "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                           "(KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"),
+            "Referer": f"https://{host}/admin/dashboard",
+            "Origin": f"https://{host}",
+        }
+        r = requests.get(f"{base}/posts", headers=headers, timeout=60)
+        if r.status_code != 200:
+            return set()
+        data = r.json()
+        rows = data.get("data") if isinstance(data, dict) else data
+        if not isinstance(rows, list):
+            return set()
+        return {str((p or {}).get("slug") or "").strip().lower()
+                for p in rows if isinstance(p, dict)}
+    except Exception:
+        return set()
+
+
+def find_pending_slink(output_root, cfg=None) -> list:
+    """Liet ke [(work_dir, payload)] cua cac bai Slink tung loi va CHUA dang duoc."""
+    items = []
+    try:
+        root = Path(output_root)
+    except Exception:
+        return items
+    if not root.is_dir():
+        return items
+    existing = slink_existing_slugs(cfg) if cfg else set()
+    for work_dir in sorted(root.glob("_story_output_*"), key=lambda p: p.name):
+        if _adsconex_has_published(work_dir):
+            continue
+        path = slink_pending_path(work_dir)
+        if not path.is_file():
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8") or "{}")
+        except Exception:
+            continue
+        payload = data.get("payload") if isinstance(data, dict) else None
+        if not (isinstance(payload, dict) and payload.get("chapters")):
+            continue
+        slug = str(payload.get("slug") or "").strip().lower()
+        if slug and slug in existing:
+            # Bai DA co tren site (502 la loi gia) -> KHONG dang lai de tranh trung.
+            try:
+                _safe_write_text(work_dir / "republish_skipped_already_live.txt",
+                                 f"Bai slug '{slug}' da co tren site fableon. Bo qua dang lai.\n",
+                                 encoding="utf-8")
+            except Exception:
+                pass
+            continue
+        items.append((work_dir, payload))
+    return items
+
+
 def adsconex_split_chunks(content: str, max_chars: int = 36000) -> list:
     """Chia content chapter-mode thanh nhieu phan <= max_chars.
 
@@ -1246,10 +1737,80 @@ def build_adsconex_chapter_content(story: dict) -> str:
         parts.append(paragraphize(chapter_body_only(ch.get("body", ""), n)))
     return "\n".join(parts)
 
+def published_slink_link(result: dict, site_host: str) -> str:
+    """Link bài Slink/fableon dạng /<slug>. Lấy từ response, không đoán."""
+    if not isinstance(result, dict):
+        return ""
+    host = urlsplit("https://" + re.sub(r"^https?://", "", str(site_host).strip().strip("/"))).netloc
+    if not host:
+        return ""
+    candidates = [result]
+    for obj in list(candidates):
+        for key in ("data", "post", "result", "posts"):
+            nested = obj.get(key) if isinstance(obj, dict) else None
+            if isinstance(nested, dict) and nested not in candidates:
+                candidates.append(nested)
+            elif isinstance(nested, list):
+                for item in nested:
+                    if isinstance(item, dict) and item not in candidates:
+                        candidates.append(item)
+    for obj in candidates:
+        url = str(obj.get("url") or obj.get("link") or obj.get("permalink") or "").strip()
+        if url.startswith("http"):
+            return url
+        if url.startswith("/"):
+            return f"https://{host}{url}"
+    for obj in candidates:
+        slug = str(obj.get("slug") or "").strip()
+        if slug:
+            return f"https://{host}/{slug}"
+    return ""
+
+
+def slink_localized(value, lang: str):
+    """fableon nhận title/content dạng chuỗi hoặc dict đa ngôn ngữ {en,vi,zh,ko}."""
+    if isinstance(value, dict):
+        text = str(value.get(lang) or "").strip()
+        if not text:
+            for key in ("en", "vi", "zh", "ko"):
+                text = str(value.get(key) or "").strip()
+                if text:
+                    break
+        return text
+    return str(value or "")
+
+
+def build_slink_chapters(story: dict, pagebreak_marker: str = "{{nextpage}}") -> list:
+    """Dựng mảng chapters cho POST /api/posts/chapter của fableon.
+
+    Mỗi phần tử: {"title": ..., "content": "<p>...</p>"} — content là HTML,
+    phân trang trong 1 chương bằng marker {{nextpage}} (Tiptap/fableon hiểu).
+    """
+    marker = pagebreak_marker if pagebreak_marker in ("{{nextpage}}", "<!--nextpage-->") else "{{nextpage}}"
+    chapters = []
+    for idx, ch in enumerate(story.get("chapters", []) or [], 1):
+        n = safe_int(ch.get("number"), idx)
+        raw_title = str(ch.get("title") or "").strip()
+        raw_title = re.sub(rf"^chapter\s*{n}\s*[-:–—]*\s*", "", raw_title, flags=re.I).strip()
+        if not raw_title:
+            raw_title = "The Story Takes a Dangerous Turn"
+        raw_body = ch.get("body")
+        if raw_body is None:
+            raw_body = ch.get("content") or ""
+        # Cat truoc khi paragraphize: paragraphize() escape HTML, nen marker
+        # <!--nextpage--> se bi doi thanh &lt;!--nextpage--&gt; va fableon khong
+        # con hieu la ngat trang. Tach -> paragraphize tung phan -> noi lai.
+        parts = re.split(r"<!--\s*nextpage\s*-->", chapter_body_only(raw_body, n), flags=re.I)
+        blocks = [paragraphize(p).strip() for p in parts]
+        body = f"\n\n{marker}\n\n".join(b for b in blocks if b)
+        chapters.append({"title": html_escape(raw_title), "content": body})
+    return chapters
+
+
 def choose_filename_phrase(cfg: dict) -> str:
-    """Chọn ngẫu nhiên 1 câu trong ô 'Câu chèn trong tên file'. Trống = 'full story'."""
+    """Chọn ngẫu nhiên 1 câu trong ô 'Câu chèn trong tên file' (theo ngôn ngữ)."""
     import random
-    raw = str(cfg.get("filename_phrase_list") or "").replace("\r", "\n")
+    raw = filename_phrases_for_language(cfg).replace("\r", "\n")
     lines = [re.sub(r"\s+", " ", ln).strip(" .;") for ln in raw.split("\n")]
     lines = [ln for ln in lines if ln]
     return random.choice(lines) if lines else "full story"
@@ -2991,6 +3552,7 @@ Do not invent unsupported events. Keep chronology. Use neutral role labels if na
             try:
                 client = self._new_writer_client()
                 self._log(f"{label}: API attempt {attempt}/{retries}")
+                lang_note = language_instruction(effective_language(self.cfg))
                 rsp = client.chat.completions.create(
                     model=self.cfg["writer_model"].strip(),
                     messages=[
@@ -3001,7 +3563,9 @@ Do not invent unsupported events. Keep chronology. Use neutral role labels if na
                                 "This automated run explicitly requests the entire story in one run; "
                                 "create the architecture first, then continue without waiting for approval. "
                                 "Return STRICT valid JSON matching the schema in the user request.\n\n"
-                                + self.cfg["story_prompt_text"]
+                                + strip_language_rules(self.cfg["story_prompt_text"],
+                                                       effective_language(self.cfg))
+                                + lang_note
                                 + (
                                     "\n\nAPPROVED VIDEO SCRIPT — LOCKED SOURCE FOR THE HOOK. "
                                     "The chapter scenes and caption must match these characters, "
@@ -3116,7 +3680,7 @@ JSON SCHEMA:
     }}
   ]
 }}
-""".strip()
+""".strip() + language_instruction(effective_language(self.cfg))
         obj = self._writer_json_call(
             f"Writer chapters {nums[0]}-{nums[-1]}",
             prompt,
@@ -3161,7 +3725,7 @@ REQUIREMENTS:
   names, do not contradict the script, and do not change the genre / era / outcome.
 - Return STRICT JSON only:
 {{"chapter": {{"number": {n}, "title": "...", "start_second": {safe_float(source.get('start_second'), 0.0)}, "end_second": {safe_float(source.get('end_second'), 0.0)}, "body": "..."}}}}
-""".strip()
+""".strip() + language_instruction(effective_language(self.cfg))
         obj = self._writer_json_call(
             f"Writer emergency Chapter {n}",
             prompt,
@@ -3181,8 +3745,9 @@ REQUIREMENTS:
         return ch
 
     def _story_metadata(self, analysis: dict, chapter_titles: List[str]) -> dict:
+        lang_name = language_prompt_name(effective_language(self.cfg))
         prompt = f"""
-Create metadata for an English serialized drama article.
+Create metadata for a serialized drama article written in {lang_name}.
 
 SOURCE ANALYSIS:
 {json.dumps({
@@ -3864,8 +4429,11 @@ Return STRICT JSON only:
             "endangered, let HER tell it as 'I', 'my son', 'my granddaughter', etc. "
             "Identify the correct narrator from THIS story; never copy names, relationships "
             "or events from any other example.\n"
-            "Use natural American English, about 180-300 words. Put EACH sentence or dialogue "
-            "line in its own paragraph with one blank line before the next. Start inside the dangerous event, with the narrator's "
+            + ("Use natural American English, about 180-300 words. Put EACH sentence or dialogue "
+               if language_prompt_name(effective_language(self.cfg)) == "English" else
+               f"Use {language_prompt_name(effective_language(self.cfg))}, about 180-300 words. "
+               "Put EACH sentence or dialogue ")
+            + "line in its own paragraph with one blank line before the next. Start inside the dangerous event, with the narrator's "
             "fear and physical experience. Then reveal the rescue, the unfair accusation and "
             "the phone/evidence only to the extent already shown in the approved video. "
             "Use brief dialogue and varied sentence lengths. Finish with an emotional open "
@@ -3877,28 +4445,54 @@ Return STRICT JSON only:
             "recording if that occurs in the story. Do not invent precise durations, secret "
             "money/house schemes, or other details unless supported by the approved script "
             "or completed Blog. No chapter titles, hashtags or post metadata. "
-            "End EXACTLY with: Read the full story — link in the comments.\n"
+            "End EXACTLY with: " + CAPTION_CTA.get(effective_language(self.cfg),
+                                                    CAPTION_CTA["English"]) + "\n"
             "Return STRICT JSON only: {\"caption\": \"first-person caption with \\n\\n between paragraphs\"}.\n\n"
             "STORY CONTEXT:\n" + json.dumps(source, ensure_ascii=False)
         )
+        cta = CAPTION_CTA.get(effective_language(self.cfg), CAPTION_CTA["English"])
         for attempt in range(2):
             caption = str(self._writer_json_call("Facebook caption", prompt, max_tokens=1400).get("caption") or "").strip()
-            words = len(caption.split())
-            pronouns = re.findall(r"\b(?:I|my|me|we|our)\b", caption, flags=re.I)
-            opening = caption.split("\n\n", 1)[0]
-            if (caption and 150 <= words <= 330 and caption.count("\n\n") >= 4
-                    and len(pronouns) >= 4
-                    and re.search(r"\b(?:I|my|me|we|our)\b", opening, flags=re.I)
-                    and not re.search(r"screen went black|hard cut|the video ends|the viewer", caption, flags=re.I)):
-                cta = "Read the full story — link in the comments."
-                if not caption.endswith(cta):
-                    caption = caption.rstrip().removesuffix("Read the full story - link in the comments.").rstrip()
-                    caption += "\n\n" + cta
+            lang_key = effective_language(self.cfg)
+            markers = FIRST_PERSON_MARKERS.get(lang_key, FIRST_PERSON_MARKERS["English"])
+            marker_re = re.compile("|".join(re.escape(m) for m in markers), flags=re.I)
+            hits = marker_re.findall(caption)
+            # Ngon ngu pro-drop: nhan them dong tu ngoi thu nhat (bo dau de so sanh).
+            verbs = FIRST_PERSON_VERBS.get(lang_key) or []
+            # Tieng Nhat/Han/Thai khong dan cach bang dau cach -> dem ky tu thay vi "tu".
+            if lang_key in NO_SPACE_LANGUAGES:
+                length_ok = 200 <= len(caption) <= 4000
+            else:
+                length_ok = 150 <= len(caption.split()) <= 330
+            # Cac cau cam la tieng Anh -> chi kiem khi ngon ngu la tieng Anh.
+            if lang_key == "English":
+                no_camera = not re.search(
+                    r"screen went black|hard cut|the video ends|the viewer", caption, flags=re.I)
+            else:
+                no_camera = True
+            # "Mo dau bang ngoi thu nhat": xet 2 doan dau (khong chi doan 1) de
+            # khong loai oan ngon ngu pro-drop / cau mo dau ngan.
+            head = "\n\n".join(caption.split("\n\n")[:2])
+            opens_first_person = bool(marker_re.search(head)) or (
+                bool(verbs) and any(
+                    re.search(r"\b" + re.escape(v) + r"\b",
+                              "".join(ch for ch in head.lower() if ch.isalnum() or ch.isspace()))
+                    for v in verbs))
+            if (caption and length_ok and caption.count("\n\n") >= 4
+                    and len(hits) >= 4
+                    and opens_first_person
+                    and no_camera):
+                # Chuan hoa cau ket ve dung CTA cua ngon ngu da chon; bo moi CTA
+                # cu (ke ca tieng Anh) neu model lo giu lai.
+                body = caption
+                for old_cta in ALL_CTAS:
+                    if body.endswith(old_cta):
+                        body = body[:-len(old_cta)].rstrip()
+                        break
+                caption = body + "\n\n" + cta
                 return caption
             self._log(f"Caption chưa đúng giọng kể/độ dài (lần {attempt + 1}/2); viết lại.")
-            prompt += ("\n\nREWRITE: First-person personal confession, 180-300 words, "
-                       "one sentence or dialogue line per paragraph, each separated by a blank line; no scene or camera descriptions. "
-                       "Keep the same established facts and open loop.")
+            prompt += "\n\n" + CAPTION_REWRITE_NOTE.get(lang_key, CAPTION_REWRITE_NOTE["English"])
         raise RuntimeError("Caption chưa đạt giọng kể ngôi thứ nhất; Blog.txt đã được lưu trong thư mục kết quả.")
 
     def build_html(self, story: dict, pagebreak_marker: Optional[str] = None) -> str:
@@ -4486,11 +5080,191 @@ Return STRICT JSON only:
         }
 
     def publish_current(self, story: dict) -> dict:
-        """Chọn net theo cài đặt trong GUI: SmartTraffic hoặc Adsconex."""
+        """Chọn net theo cài đặt trong GUI: SmartTraffic, Adsconex hoặc Slink."""
         provider = str(self.cfg.get("net_provider") or "SmartTraffic").strip().lower()
         if provider.startswith("ads"):
             return self.publish_adsconex(story)
+        if provider.startswith("slink"):
+            return self.publish_slink(story)
         return self.publish_smarttraffic(story)
+
+    # ============================================================
+    # SLINK (fableon.treeiq.biz) - dang bai che do chapter bang REST API
+    # ============================================================
+    def _slink_headers(self, token: str) -> dict:
+        """Header cho API fableon (Laravel): Bearer <id|secret>."""
+        base = str(self.cfg.get("slink_base_url") or "https://fableon.treeiq.biz/api").strip().rstrip("/")
+        host = urlsplit(base).netloc or "fableon.treeiq.biz"
+        return {
+            "Accept": "application/json",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                           "(KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"),
+            "Referer": f"https://{host}/admin/dashboard",
+            "Origin": f"https://{host}",
+        }
+
+    def _slink_locale(self) -> str:
+        """fableon ho tro en/vi/zh/ko; cac ngon ngu khac dung 'en'."""
+        key = effective_language(self.cfg)
+        return {"Vietnamese": "vi", "Chinese": "zh", "Korean": "ko"}.get(key, "en")
+
+    def _slink_send(self, payload: dict, endpoint: str = ""):
+        """POST len fableon kem retry loi TAM THOI. Tra (response, data, payload)."""
+        base = str(self.cfg.get("slink_base_url") or "https://fableon.treeiq.biz/api").strip().rstrip("/")
+        endpoint = endpoint or f"{base}/posts/chapter"
+        token = str(self.cfg.get("slink_api_key", "") or "").strip()
+        headers = self._slink_headers(token)
+        max_attempts = max(1, min(6, safe_int(self.cfg.get("slink_retry_count", 3), 3)))
+        base_delay = max(5.0, safe_float(self.cfg.get("slink_retry_delay", 30), 30.0))
+        r = None
+        data = {}
+        for attempt in range(1, max_attempts + 1):
+            try:
+                r = requests.post(endpoint, headers=headers, json=payload, timeout=180)
+            except Exception as e:
+                r = None
+                data = {"network_error": str(e)}
+                if attempt >= max_attempts:
+                    break
+                wait_s = min(base_delay * (2 ** (attempt - 1)), 300.0)
+                self._log(f"Slink network error ({e}) | thu lai {attempt + 1}/{max_attempts} sau {wait_s:.0f}s")
+                time.sleep(wait_s)
+                continue
+            try:
+                data = r.json()
+            except Exception:
+                data = {"raw": r.text[:2000]}
+            if r.status_code in (200, 201):
+                break
+            if attempt >= max_attempts or not _adsconex_is_transient(r.status_code, data):
+                break
+            wait_s = max(5.0, _adsconex_retry_after_seconds(r, base_delay * (2 ** (attempt - 1))))
+            detail = json.dumps(data, ensure_ascii=False)[:200] if isinstance(data, (dict, list)) else str(data)[:200]
+            self._log(f"Slink HTTP {r.status_code} (loi tam thoi) | thu lai {attempt + 1}/{max_attempts} "
+                      f"sau {wait_s:.0f}s | {detail}")
+            time.sleep(wait_s)
+        return r, data, payload
+
+    def publish_slink(self, story: dict) -> dict:
+        """Đăng bài lên Slink (fableon.treeiq.biz) ở chế độ chapter qua REST API.
+
+        POST /api/posts/chapter cần title + content + chapters[] (mảng >= 1).
+        Server lưu sẵn từng chương; phân trang trong 1 chương dùng {{nextpage}}.
+        """
+        self._step_start("Slink publish")
+        token = str(self.cfg.get("slink_api_key", "") or "").strip()
+        if not token:
+            raise RuntimeError("Slink API token đang trống. Nhập trong tab Slink.")
+
+        base = str(self.cfg.get("slink_base_url") or "https://fableon.treeiq.biz/api").strip().rstrip("/")
+        endpoint = f"{base}/posts/chapter"
+
+        chapters = story.get("chapters", []) or []
+        if not chapters:
+            raise RuntimeError("Truyện chưa có chapter nào để đăng dạng series.")
+
+        # fableon CHI hieu {{nextpage}}. Marker <!--nextpage--> (dung cho
+        # SmartTraffic) bi server coi la HTML comment va xoa sach -> mat phan trang.
+        # Vi vay KHONG lay theo cfg["pagebreak_mode"], luon dung {{nextpage}}.
+        slink_chapters = build_slink_chapters(story, "{{nextpage}}")
+        if not slink_chapters:
+            raise RuntimeError("Không dựng được nội dung chapter cho Slink.")
+
+        locale = self._slink_locale()
+        title_text = compact_meta_text(story.get("title") or "Untitled Story", 240)
+        intro = compact_meta_text(story.get("meta_description") or story.get("summary") or "", 600)
+        thumb = (story.get("thumbnail_url") or "").strip()
+
+        payload = {
+            "title": title_text,
+            "content": f"<p>{html_escape(intro)}</p>" if intro else "",
+            "slug": safe_slug(story.get("slug") or title_text or "story"),
+            "status": str(self.cfg.get("slink_status") or "published").strip() or "published",
+            "type": "post",
+            "chapter_skip_intro": True,
+            "chapters": slink_chapters,
+        }
+        raw_category = str(self.cfg.get("slink_category", "") or "").strip()
+        if raw_category.isdigit():
+            payload["category_id"] = int(raw_category)
+        raw_site = str(self.cfg.get("slink_site_id", "") or "").strip()
+        if raw_site.isdigit():
+            payload["site_ids"] = [int(raw_site)]
+        if thumb.startswith("https://"):
+            payload["featured_image"] = thumb
+        # fableon yeu cau seo_* la ARRAY da ngon ngu; gui string -> 422.
+        seo_title = clean_meta_text(story.get("meta_title") or story.get("title") or "", 240)
+        seo_desc = clean_meta_text(story.get("meta_description") or "", 500)
+        if seo_title:
+            payload["seo_title"] = {locale: seo_title}
+        if seo_desc:
+            payload["seo_description"] = {locale: seo_desc}
+
+        if self.work_dir:
+            try:
+                _safe_write_text(self.work_dir / "publish_payload_slink.json",
+                                 json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+            except Exception:
+                pass
+
+        self._log(f"Slink POST {endpoint} | chapters={len(slink_chapters)} | locale={locale}")
+        r, data, payload = self._slink_send(payload, endpoint)
+
+        if self.work_dir:
+            try:
+                _safe_write_text(self.work_dir / "publish_response_slink.json",
+                                 json.dumps({"http_status": (r.status_code if r is not None else "network"),
+                                             "response": data}, ensure_ascii=False, indent=2),
+                                 encoding="utf-8")
+            except Exception:
+                pass
+
+        if r is None or r.status_code not in (200, 201):
+            detail = (json.dumps(data, ensure_ascii=False)[:600]
+                      if isinstance(data, (dict, list)) else str(data)[:600])
+            # 401/403/422 Laravel tra ngay -> CHUA tao bai -> luu payload dang lai an toan.
+            # 502/503/504/429 = Cloudflare/origin loi tam thoi -> luu payload.
+            if r is None or r.status_code in (401, 403, 422, 429, 500, 502, 503, 504,
+                                              520, 521, 522, 523, 524):
+                slink_write_pending(self.work_dir, payload,
+                                    (r.status_code if r is not None else "network"), detail)
+            raise RuntimeError(
+                f"Slink dang bai that bai (HTTP {r.status_code if r is not None else 'network'}): {detail}")
+
+        site_host = self.cfg.get("slink_site_host", "")
+        link = published_slink_link(data if isinstance(data, dict) else {}, site_host)
+        if not link:
+            slug = str(payload.get("slug") or "").strip()
+            host = urlsplit("https://" + re.sub(r"^https?://", "", str(site_host).strip().strip("/"))).netloc
+            link = f"https://{host}/{slug}" if host and slug else ""
+
+        post_id = ""
+        if isinstance(data, dict):
+            for key in ("id", "post_id"):
+                if str(data.get(key) or "").strip().isdigit():
+                    post_id = str(data[key]).strip()
+                    break
+            if not post_id and isinstance(data.get("data"), dict):
+                for key in ("id", "post_id"):
+                    if str(data["data"].get(key) or "").strip().isdigit():
+                        post_id = str(data["data"][key]).strip()
+                        break
+
+        self._log(f"Slink accepted | HTTP {r.status_code} | chapters={len(slink_chapters)} | url={link}")
+        self._step_end("Slink publish")
+        slink_clear_pending(self.work_dir)
+        return {
+            "url": link,
+            "id": post_id or None,
+            "chapters": slink_chapters,
+            "count": len(slink_chapters),
+            "provider": "Slink",
+            "chapter_verified": True,
+            "response": data,
+        }
 
     def republish_pending(self, work_dir, payload: dict) -> dict:
         """Dang lai payload da luu cua bai loi 502. KHONG ton Vision/Writer.
@@ -4592,6 +5366,96 @@ Return STRICT JSON only:
         finally:
             self.work_dir = previous_work_dir
 
+    def republish_pending_slink(self, work_dir, payload: dict) -> dict:
+        """Dang lai payload da luu cua bai Slink loi. KHONG ton Vision/Writer."""
+        work_dir = Path(work_dir)
+        previous_work_dir = self.work_dir
+        self.work_dir = work_dir
+        try:
+            base = str(self.cfg.get("slink_base_url") or "https://fableon.treeiq.biz/api").strip().rstrip("/")
+            r, data, payload = self._slink_send(payload, f"{base}/posts/chapter")
+            try:
+                _safe_write_text(work_dir / "publish_response_slink.json",
+                                 json.dumps({"http_status": (r.status_code if r is not None else "network"),
+                                             "response": data},
+                                            ensure_ascii=False, indent=2), encoding="utf-8")
+            except Exception:
+                pass
+
+            if r is None or r.status_code not in (200, 201):
+                detail = (json.dumps(data, ensure_ascii=False)[:600]
+                          if isinstance(data, (dict, list)) else str(data)[:600])
+                slink_write_pending(work_dir, payload,
+                                    (r.status_code if r is not None else "network"), detail)
+                self._log(f"[{work_dir.name}] Vẫn lỗi: {detail[:200]}")
+                return {}
+
+            site_host = self.cfg.get("slink_site_host", "")
+            link = published_slink_link(data if isinstance(data, dict) else {}, site_host)
+            if not link:
+                slug = str(payload.get("slug") or "").strip()
+                host = urlsplit("https://" + re.sub(r"^https?://", "", str(site_host).strip().strip("/"))).netloc
+                link = f"https://{host}/{slug}" if host and slug else ""
+
+            post_id = ""
+            if isinstance(data, dict):
+                for key in ("id", "post_id"):
+                    if str(data.get(key) or "").strip().isdigit():
+                        post_id = str(data[key]).strip()
+                        break
+                if not post_id and isinstance(data.get("data"), dict):
+                    for key in ("id", "post_id"):
+                        if str(data["data"].get(key) or "").strip().isdigit():
+                            post_id = str(data["data"][key]).strip()
+                            break
+
+            publish_result = {
+                "url": link,
+                "id": post_id or None,
+                "chapters": payload.get("chapters") or [],
+                "count": len(payload.get("chapters") or []),
+                "provider": "Slink",
+                "chapter_verified": True,
+                "response": data,
+                "republished_from_pending": True,
+                "saved_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+            }
+            try:
+                _safe_write_text(work_dir / "publish_result.json",
+                                 json.dumps(publish_result, ensure_ascii=False, indent=2), encoding="utf-8")
+            except Exception:
+                pass
+            slink_clear_pending(work_dir)
+            self._log(f"[{work_dir.name}] ĐÃ ĐĂNG LẠI | HTTP {r.status_code} | url={link}")
+
+            story = {}
+            try:
+                story_path = work_dir / "story.json"
+                if story_path.is_file():
+                    story = json.loads(story_path.read_text(encoding="utf-8") or "{}")
+            except Exception:
+                story = {}
+            video_path = None
+            try:
+                src = work_dir / "source_video.json"
+                if src.is_file():
+                    info = json.loads(src.read_text(encoding="utf-8") or "{}")
+                    video_path = Path(str(info.get("path") or ""))
+            except Exception:
+                video_path = None
+            renamed = ""
+            if isinstance(story, dict) and story and video_path is not None and video_path.is_file():
+                script_path = work_dir / "video_script.txt"
+                script_text = script_path.read_text(encoding="utf-8") if script_path.is_file() else ""
+                try:
+                    renamed = self.rename_published_video(video_path, story, publish_result, script_text)
+                except Exception as exc:
+                    self._log(f"[{work_dir.name}] Đăng OK nhưng đổi tên video lỗi: {exc}")
+            return {"work_dir": str(work_dir), "story": story,
+                    "publish_result": publish_result, "renamed_video": renamed}
+        finally:
+            self.work_dir = previous_work_dir
+
     def _republish_with_alternate_marker(self, story: dict, marker: str, headers: dict) -> Optional[dict]:
         """V21.1: Re-post the same story with a different page-break marker so the
         story theme on the website can paginate even when the first marker fails."""
@@ -4655,22 +5519,31 @@ Return STRICT JSON only:
         provider = str(self.cfg.get("net_provider") or "SmartTraffic").strip().lower()
         if provider.startswith("ads"):
             link = published_adsconex_link(result, self.cfg.get("adsconex_site_host", ""))
+        elif provider.startswith("slink"):
+            link = published_slink_link(result, self.cfg.get("slink_site_host", ""))
         else:
             link = published_article_link(result, self.cfg.get("site_host", ""))
         if not link:
             self._log("Chưa nhận được link bài viết từ API; giữ tên video, không đoán link từ slug.")
             return ""
+        # Ten file video hien ra cho nguoi xem -> phai cung ngon ngu voi truyen.
+        name_lang = language_prompt_name(effective_language(self.cfg))
         try:
             prompt = (
-                "Write one short English Facebook video title based on the actual VIDEO HOOK. "
+                f"Write one short {name_lang} Facebook video title based on the actual VIDEO HOOK. "
                 "Make a specific curiosity gap without revealing the outcome or inventing facts. "
-                "Write a fuller, natural title of about 110-140 characters when the hook has enough detail. "
-                "Add 3 to 5 relevant, short English hashtags. The complete VIDEO FILENAME, including "
+                f"Write a fuller, natural title of about 110-140 characters in {name_lang} when the hook has enough detail. "
+                f"Add 3 to 5 relevant, short hashtags written in {name_lang}. "
+                "Hashtags must use plain ASCII letters/digits/underscore only (no accents, no spaces) "
+                "so the filename stays safe on network drives. "
+                "The complete VIDEO FILENAME, including "
                 "hashtags, full story article ID link and .mp4 extension, must stay at or below 219 characters; "
                 "the application will trim the hook first if needed. "
-                "No URLs or semicolons. Return JSON: {\"title\":\"...\",\"hashtags\":[\"#...\",\"#...\",\"#...\"]}.\n"
+                f"No URLs or semicolons. The title and hashtags MUST be in {name_lang}, NOT in English. "
+                "Return JSON: {\"title\":\"...\",\"hashtags\":[\"#...\",\"#...\",\"#...\"]}.\n"
                 + json.dumps({"video_script": script[:3500], "story_title": story.get("title", ""),
-                              "caption_start": str(story.get("facebook_caption", ""))[:650]}, ensure_ascii=False)
+                              "caption_start": str(story.get("facebook_caption", ""))[:650],
+                              "required_language": name_lang}, ensure_ascii=False)
             )
             generated = self._writer_json_call("Facebook video title", prompt, max_tokens=250)
             title = re.sub(r"[;#\r\n]+", " ", str(generated.get("title") or ""))
@@ -4681,13 +5554,13 @@ Return STRICT JSON only:
             tags = ["#" + m.group(1) for tag in tags if (m := re.fullmatch(r"#?([A-Za-z0-9_]{2,25})", str(tag).strip()))]
             tags = list(dict.fromkeys(tags))[:5]
             if len(tags) < 3:
-                tags = ["#story", "#drama", "#fullstory"]
+                tags = fallback_hashtags_for_language(effective_language(self.cfg))
             if not title:
                 raise ValueError("AI returned an empty title")
         except Exception as exc:
             self._log(f"Không tạo được tên bằng AI ({exc}); dùng tiêu đề bài viết.")
             title = re.sub(r"[;#\r\n]+", " ", str(story.get("title") or video.stem)).strip()[:160]
-            tags = ["#story", "#drama", "#fullstory"]
+            tags = fallback_hashtags_for_language(effective_language(self.cfg))
         post_text = f"{title} {' '.join(tags)}"
         phrase = choose_filename_phrase(self.cfg)
         exact_text = f"{post_text};{phrase} {link}"
@@ -4812,6 +5685,11 @@ Return STRICT JSON only:
                                          "size": videos[0].stat().st_size}, ensure_ascii=False, indent=2),
                              encoding="utf-8")
         combined_prompt = self.cfg["story_prompt_text"].strip()
+        # Ghi ro ngon ngu dang ap de con doi chieu ket qua (va luu chung vao
+        # prompt_used.txt ben duoi, de xem lai sau nay tool da chay voi ngon ngu nao).
+        run_language = effective_language(self.cfg)
+        combined_prompt += language_instruction(run_language)
+        self._log(f"Ngôn ngữ áp cho truyện + mọi chapter: {language_label(run_language)}")
         if script:
             combined_prompt += "\n\nAPPROVED VIDEO SCRIPT — LOCKED SOURCE FOR THE HOOK:\n" + script
             _safe_write_text(self.work_dir / "input_script.txt", script, encoding="utf-8")
@@ -5536,7 +6414,7 @@ class App(tk.Tk):
 
         ttk.Label(source, text="Net đăng bài").grid(row=1, column=2, sticky="e", padx=(12, 6), pady=4)
         ttk.Combobox(source, textvariable=self.vars["net_provider"],
-                     values=("SmartTraffic", "Adsconex"), state="readonly", width=16).grid(
+                     values=("SmartTraffic", "Adsconex", "Slink"), state="readonly", width=16).grid(
                          row=1, column=3, sticky="w", pady=4)
 
         ttk.Label(
@@ -5558,6 +6436,7 @@ class App(tk.Tk):
         ai = ttk.Frame(nb, padding=10)
         st = ttk.Frame(nb, padding=10)
         ads = ttk.Frame(nb, padding=10)
+        slink = ttk.Frame(nb, padding=10)
         img = ttk.Frame(nb, padding=10)
         settings_tab = ttk.Frame(nb, padding=10)
         guide_tab = ttk.Frame(nb, padding=10)
@@ -5567,6 +6446,7 @@ class App(tk.Tk):
         nb.add(ai, text="Vilao AI")
         nb.add(st, text="SmartTraffic")
         nb.add(ads, text="Adsconex")
+        nb.add(slink, text="Slink")
         nb.add(img, text="Image hosting")
         nb.add(settings_tab, text="FFmpeg")
         nb.add(guide_tab, text="Hướng dẫn")
@@ -5721,6 +6601,50 @@ class App(tk.Tk):
             command=lambda: webbrowser.open("https://dashboard.smarttraffic.app/admin/api-keys")
         ).pack(side="left")
 
+        # ------------------------------------------------------------
+        # NGON NGU TRUYEN (mac dinh TAT -> giu nguyen hanh vi cu: tieng Anh)
+        # ------------------------------------------------------------
+        lang_box = ttk.LabelFrame(st, text="Ngôn ngữ truyện")
+        lang_box.grid(row=8, column=0, columnspan=3, sticky="ew", pady=(10, 4))
+        lang_box.columnconfigure(1, weight=1)
+
+        ttk.Checkbutton(
+            lang_box,
+            text=("Viết truyện + caption + tên file bằng ngôn ngữ chọn bên dưới "
+                  "(mặc định TẮT = tiếng Anh như cũ)"),
+            variable=self.vars["language_enabled"],
+            command=self._refresh_language_state
+        ).grid(row=0, column=0, columnspan=3, sticky="w", pady=(2, 4))
+
+        ttk.Label(lang_box, text="Ngôn ngữ", width=22).grid(row=1, column=0, sticky="w", pady=3)
+        self.language_combo = ttk.Combobox(
+            lang_box, textvariable=self.vars["language"],
+            values=LANGUAGE_KEYS, state="readonly", width=30
+        )
+        self.language_combo.grid(row=1, column=1, sticky="w", pady=3)
+        self.language_hint = ttk.Label(lang_box, text="", foreground="#0a7", width=24)
+        self.language_hint.grid(row=1, column=2, sticky="w", pady=3)
+
+        self.language_note = ttk.Label(
+            lang_box,
+            text=(
+                "Khi TẮT: mọi thứ chạy y như trước (tiếng Anh), KHÔNG đổi gì.\n"
+                "Khi BẬT: Writer viết toàn bộ truyện, tiêu đề chapter, metadata, caption "
+                "Facebook và tên file video bằng ngôn ngữ đã chọn — kể cả khi kịch bản/hook "
+                "nguồn là tiếng Anh thì vẫn dịch và viết lại. Tên riêng (tên nhân vật, địa danh) "
+                "giữ nguyên.\n"
+                "Đổi ngôn ngữ KHÔNG tự đổi danh sách 'Câu chèn trong tên file' anh đã tự nhập — "
+                "chỉ thay khi ô đó còn là bản mặc định."
+            ),
+            foreground="#555", justify="left", wraplength=950
+        )
+        self.language_note.grid(row=2, column=0, columnspan=3, sticky="w", pady=(6, 2))
+        # O 'Cau chien trong ten file' nam o tab khac; theo doi ca 2 bien de cap nhat
+        # ngay khi nguoi dung doi lua chon (khong phai bam Save moi thay).
+        self.vars["language"].trace_add("write", lambda *a: self._refresh_language_state())
+        self.vars["language_enabled"].trace_add("write", lambda *a: self._refresh_language_state())
+        self._refresh_language_state()
+
         # ============================================================
         # ADSCONEX (nền Blogbio) - token + site/author/category riêng
         # ============================================================
@@ -5812,6 +6736,100 @@ class App(tk.Tk):
             ),
             foreground="#555", justify="left", wraplength=950
         ).grid(row=3, column=0, columnspan=3, sticky="w", pady=(6, 2))
+
+        # ============================================================
+        # SLINK (fableon) - dang bai che do chapter qua REST API
+        # ============================================================
+        slink.columnconfigure(1, weight=1)
+
+        ttk.Label(slink, text="Slink API Token", width=22).grid(row=0, column=0, sticky="w", pady=4)
+        self.slink_key_entry = ttk.Entry(
+            slink, textvariable=self.vars["slink_api_key"], show="*"
+        )
+        self.slink_key_entry.grid(row=0, column=1, sticky="ew", pady=4)
+        self.slink_key_editing = False
+        self.slink_edit_btn = ttk.Button(
+            slink, text="Edit Key", command=self.toggle_slink_key_edit
+        )
+        self.slink_edit_btn.grid(row=0, column=2, padx=(8, 0), pady=4)
+
+        self._row(slink, 1, "API base URL", "slink_base_url")
+        self._row(slink, 2, "Site host", "slink_site_host")
+        self._row(slink, 3, "Site ID (số)", "slink_site_id")
+        slink_cat = ttk.Frame(slink)
+        slink_cat.grid(row=4, column=0, columnspan=3, sticky="w", pady=4)
+        ttk.Label(slink_cat, text="Category ID (số)", width=22).pack(side="left")
+        ttk.Entry(slink_cat, textvariable=self.vars["slink_category"], width=12).pack(side="left")
+        ttk.Button(slink_cat, text="Lấy danh sách", command=self.fetch_slink_categories).pack(
+            side="left", padx=(8, 0))
+
+        slink_status_row = ttk.Frame(slink)
+        slink_status_row.grid(row=5, column=0, columnspan=3, sticky="w", pady=4)
+        ttk.Label(slink_status_row, text="Trạng thái bài", width=22).pack(side="left")
+        ttk.Combobox(
+            slink_status_row, textvariable=self.vars["slink_status"],
+            values=("published", "draft"), state="readonly", width=12
+        ).pack(side="left")
+
+        ttk.Label(
+            slink,
+            text=(
+                "Đăng ở mode=chapter: mỗi chapter gửi kèm trong 1 request POST "
+                "/api/posts/chapter (cần title + content + chapters[]). Server tự "
+                "lưu từng chương; phân trang TRONG một chương dùng marker {{nextpage}}.\\n"
+                "Link bài dạng /<slug> (không có tiền tố /blog/).\\n"
+                "API dùng Bearer token dạng id|secret — tạo ở trang /admin/settings/api-tokens "
+                "của site. Token chỉ đọc từ ô nhập này, KHÔNG đọc từ .env."
+            ),
+            foreground="#555",
+            wraplength=950,
+            justify="left"
+        ).grid(row=6, column=0, columnspan=3, sticky="w", pady=(8, 4))
+
+        slink_buttons = ttk.Frame(slink)
+        slink_buttons.grid(row=7, column=0, columnspan=3, sticky="w", pady=4)
+        ttk.Button(
+            slink_buttons,
+            text="Kiểm tra token",
+            command=self.test_slink_token
+        ).pack(side="left")
+        ttk.Button(
+            slink_buttons,
+            text="Mở trang API token",
+            command=lambda: webbrowser.open(
+                "https://" + re.sub(
+                    r"^https?://", "",
+                    str(self.vars["slink_site_host"].get() or "fableon.treeiq.biz").strip().strip("/"),
+                    flags=re.I) + "/admin/settings/api-tokens")
+        ).pack(side="left", padx=6)
+        ttk.Button(
+            slink_buttons,
+            text="Lấy link site",
+            command=lambda: webbrowser.open(
+                "https://" + re.sub(
+                    r"^https?://", "",
+                    str(self.vars["slink_site_host"].get() or "fableon.treeiq.biz").strip().strip("/"),
+                    flags=re.I))
+        ).pack(side="left", padx=6)
+        ttk.Button(
+            slink_buttons,
+            text="Đăng lại bài lỗi",
+            command=self.republish_failed_posts
+        ).pack(side="left", padx=6)
+
+        slink_retry = ttk.LabelFrame(slink, text="Thử lại khi net lỗi tạm thời (502/503/429)")
+        slink_retry.grid(row=8, column=0, columnspan=3, sticky="ew", pady=(10, 4))
+        slink_retry.columnconfigure(1, weight=1)
+        self._row(slink_retry, 0, "Số lần thử lại", "slink_retry_count")
+        self._row(slink_retry, 1, "Chờ giữa các lần (giây)", "slink_retry_delay")
+        ttk.Label(
+            slink_retry,
+            text=(
+                "Chỉ thử lại khi lỗi TẠM THỜI (502/503/504/429/timeout). Lỗi 401/403/422 "
+                "dừng ngay để không đăng trùng. Mỗi lần chờ gấp đôi lần trước."
+            ),
+            foreground="#555", justify="left", wraplength=950
+        ).grid(row=2, column=0, columnspan=3, sticky="w", pady=(6, 2))
 
         # ============================================================
         # IMAGE HOSTING - only credentials are editable
@@ -6191,6 +7209,161 @@ class App(tk.Tk):
             self.adsconex_key_entry.configure(show="*")
             self.adsconex_edit_btn.configure(text="Edit Key")
 
+    def toggle_slink_key_edit(self):
+        """Reveal/mask the Slink (fableon) API token while keeping the field editable."""
+        self.slink_key_editing = not self.slink_key_editing
+        if self.slink_key_editing:
+            self.slink_key_entry.configure(show="")
+            self.slink_edit_btn.configure(text="Hide Key")
+            self.slink_key_entry.focus_set()
+            self.slink_key_entry.icursor("end")
+        else:
+            self.slink_key_entry.configure(show="*")
+            self.slink_edit_btn.configure(text="Edit Key")
+
+    def _refresh_language_state(self):
+        """Bật/tắt ô chọn ngôn ngữ theo nút tích; cập nhật ô 'Câu chèn trong tên file'.
+
+        Ô câu chèn tên file CHỈ tự đổi khi nó vẫn đang chứa bản mặc định — nếu
+        người dùng đã tự nhập danh sách riêng thì giữ nguyên (tôn trọng ý người dùng).
+        """
+        try:
+            enabled = bool(self.vars["language_enabled"].get())
+        except Exception:
+            enabled = False
+        try:
+            self.language_combo.configure(state="readonly" if enabled else "disabled")
+        except Exception:
+            pass
+        key = str(self.vars["language"].get() or "English").strip() or "English"
+        try:
+            self.language_hint.configure(
+                text=("Đang áp: " + language_label(key)) if enabled else "(đang tắt)")
+        except Exception:
+            pass
+        try:
+            if enabled:
+                self.language_note.configure(
+                    text=("Đang áp cho TOÀN BỘ câu chuyện: tiêu đề, meta, TÊN từng chapter, "
+                          f"NỘI DUNG từng chapter và caption Facebook — viết bằng {language_label(key)}. "
+                          "Không trộn ngôn ngữ khác, kể cả khi video/kịch bản gốc là tiếng Anh."))
+            else:
+                self.language_note.configure(
+                    text="Đang TẮT: truyện viết mặc định bằng tiếng Anh như trước giờ.")
+        except Exception:
+            pass
+        try:
+            editor = getattr(self, "filename_phrase_editor", None)
+            if editor is not None:
+                current = editor.get("1.0", "end-1c").strip()
+                if _is_default_phrase_list(current):
+                    wanted = filename_phrases_for_language(
+                        {"language": key, "language_enabled": enabled}).strip()
+                    if current != wanted:
+                        editor.delete("1.0", "end")
+                        editor.insert("1.0", wanted)
+        except Exception:
+            pass
+
+    def test_slink_token(self):
+        """GET /posts để kiểm tra token + kết nối Slink (chạy nền, không treo GUI)."""
+        token = str(self.vars["slink_api_key"].get() or "").strip()
+        if not token:
+            messagebox.showwarning(APP_NAME, "Chưa nhập Slink API Token.")
+            return
+        base = str(self.vars["slink_base_url"].get() or "https://fableon.treeiq.biz/api").strip().rstrip("/")
+        host = urlsplit(base).netloc or str(self.vars["slink_site_host"].get() or "fableon.treeiq.biz")
+        headers = {
+            "Accept": "application/json",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Authorization": f"Bearer {token}",
+            "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                           "(KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"),
+            "Referer": f"https://{host}/admin/dashboard",
+            "Origin": f"https://{host}",
+        }
+
+        def _worker():
+            try:
+                r = requests.get(f"{base}/posts", headers=headers, timeout=45)
+                if r.status_code == 200:
+                    try:
+                        data = r.json()
+                    except Exception:
+                        data = {}
+                    rows = data.get("data") if isinstance(data, dict) else None
+                    if rows is None and isinstance(data, dict):
+                        rows = data.get("posts")
+                    count = len(rows) if isinstance(rows, list) else "?"
+                    self.log(f"Slink token OK — HTTP 200 | bài hiện có: {count}\n")
+                    self.q.put(("slink_test",
+                                f"Slink OK — token hợp lệ.\n\nBài hiện có trên site: {count}"))
+                elif r.status_code in (401, 403):
+                    snippet = (r.text or "")[:300]
+                    why = ("Token bị từ chối. Kiểm tra: (1) token còn hiệu lực không, "
+                           "(2) API base URL có đúng host không (" + host + "), "
+                           "(3) token có đúng dạng id|secret không.")
+                    self.log(f"Slink token FAIL — HTTP {r.status_code} | {snippet}\n")
+                    self.q.put(("slink_test", f"Slink HTTP {r.status_code}\n\n{why}\n\nChi tiết: {snippet}"))
+                else:
+                    snippet = (r.text or "")[:300]
+                    self.log(f"Slink token FAIL — HTTP {r.status_code}: {snippet}\n")
+                    self.q.put(("slink_test", f"Slink HTTP {r.status_code}\n\n{snippet}"))
+            except Exception as e:
+                self.log(f"Slink token FAIL — {e}\n")
+                self.q.put(("slink_test", f"Không gọi được Slink:\n{e}"))
+
+        self.log(f"Đang kiểm tra Slink token ({host})...\n")
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def fetch_slink_categories(self):
+        """Lấy danh sách category của Slink rồi cho chọn (chạy nền)."""
+        token = str(self.vars["slink_api_key"].get() or "").strip()
+        if not token:
+            messagebox.showwarning(APP_NAME, "Chưa nhập Slink API Token.")
+            return
+        base = str(self.vars["slink_base_url"].get() or "https://fableon.treeiq.biz/api").strip().rstrip("/")
+        host = urlsplit(base).netloc or str(self.vars["slink_site_host"].get() or "fableon.treeiq.biz")
+        headers = {
+            "Accept": "application/json",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Authorization": f"Bearer {token}",
+            "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                           "(KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"),
+            "Referer": f"https://{host}/admin/dashboard",
+            "Origin": f"https://{host}",
+        }
+
+        def _worker():
+            try:
+                r = requests.get(f"{base}/categories", headers=headers, timeout=45)
+                if r.status_code != 200:
+                    self.q.put(("slink_categories", ("error", f"HTTP {r.status_code}\n\n{(r.text or '')[:300]}")))
+                    return
+                try:
+                    data = r.json()
+                except Exception:
+                    data = {}
+                rows = data.get("data") if isinstance(data, dict) else None
+                if rows is None and isinstance(data, dict):
+                    rows = data.get("categories")
+                if not isinstance(rows, list) or not rows:
+                    self.q.put(("slink_categories", ("error", "Không thấy category nào trong response.")))
+                    return
+                out = []
+                for c in rows:
+                    if not isinstance(c, dict):
+                        continue
+                    out.append((str(c.get("id", "")),
+                                str(c.get("title") or c.get("name") or c.get("slug") or ""),
+                                str(c.get("slug") or "")))
+                self.q.put(("slink_categories", ("ok", out)))
+            except Exception as e:
+                self.q.put(("slink_categories", ("error", str(e))))
+
+        self.log(f"Đang lấy category Slink ({host})...\n")
+        threading.Thread(target=_worker, daemon=True).start()
+
     def test_adsconex_token(self):
         """Gọi GET /series để kiểm tra token + kết nối (chạy nền, không treo GUI)."""
         token = str(self.vars["adsconex_api_key"].get() or "").strip()
@@ -6339,6 +7512,39 @@ class App(tk.Tk):
             cid = data[sel[0]][0]
             self.vars["adsconex_category"].set(cid)
             self.log(f"Đã chọn Adsconex category ID = {cid}\n")
+            win.destroy()
+
+        box.bind("<Double-Button-1>", _apply)
+        btns = ttk.Frame(win)
+        btns.pack(fill="x", padx=10, pady=(4, 10))
+        ttk.Button(btns, text="Chọn", command=_apply).pack(side="right")
+        ttk.Button(btns, text="Đóng", command=win.destroy).pack(side="right", padx=(0, 6))
+
+    def show_slink_categories(self, payload):
+        """Popup chọn category Slink; bấm 1 dòng là điền ID vào ô."""
+        kind, data = payload
+        if kind == "error":
+            messagebox.showerror("Slink categories", data)
+            return
+        win = tk.Toplevel(self)
+        win.title("Chọn category — Slink")
+        win.transient(self)
+        win.grab_set()
+        ttk.Label(
+            win, text="Bấm 1 dòng để điền Category ID (bấm đúp cũng được):"
+        ).pack(anchor="w", padx=10, pady=(10, 4))
+        box = tk.Listbox(win, width=64, height=min(18, max(4, len(data))))
+        box.pack(fill="both", expand=True, padx=10, pady=4)
+        for cid, name, slug in data:
+            box.insert("end", f"{cid:>5}  |  {name}  ({slug})")
+
+        def _apply(_evt=None):
+            sel = box.curselection()
+            if not sel:
+                return
+            cid = data[sel[0]][0]
+            self.vars["slink_category"].set(cid)
+            self.log(f"Đã chọn Slink category ID = {cid}\n")
             win.destroy()
 
         box.bind("<Double-Button-1>", _apply)
@@ -6862,6 +8068,13 @@ class App(tk.Tk):
                             "Tool không tự đăng lại để tránh trùng bài. Hãy kiểm tra Theme Story và Site ID.")
                     else:
                         self.show_publish_links_dialog(r, story)
+                elif item[0] == "slink_categories":
+                    self.show_slink_categories(item[1])
+                elif item[0] == "slink_test":
+                    if "OK" in item[1]:
+                        messagebox.showinfo("Slink token", item[1])
+                    else:
+                        messagebox.showerror("Slink token", item[1])
                 elif item[0] == "adsconex_categories":
                     self.show_adsconex_categories(item[1])
                 elif item[0] == "cloudinary_test":
@@ -6890,21 +8103,32 @@ class App(tk.Tk):
         self.after(100, self._poll_queue)
 
     def republish_failed_posts(self):
-        """Quet folder dang chon: dang lai moi bai da luu payload (502) - khong ton Vision/Writer."""
+        """Quet folder dang chon: dang lai moi bai da luu payload (502) - khong ton Vision/Writer.
+
+        Chay theo net dang chon: Adsconex (payload adsconex) hoac Slink (payload slink).
+        """
         p1 = self.input_path.get().strip()
         folder = Path(p1) if p1 and Path(p1).is_dir() else None
         if folder is None:
             messagebox.showinfo(APP_NAME, "Chọn folder batch vào ô đường dẫn trước, rồi bấm lại.")
             return
         cfg = self.current_cfg()
-        if not str(cfg.get("net_provider") or "").strip().lower().startswith("ads"):
-            messagebox.showwarning(APP_NAME, "Mục 'Net đăng bài' phải là Adsconex mới đăng lại được.")
+        provider = str(cfg.get("net_provider") or "").strip().lower()
+        is_ads = provider.startswith("ads")
+        is_slink = provider.startswith("slink")
+        if not (is_ads or is_slink):
+            messagebox.showwarning(APP_NAME, "Mục 'Net đăng bài' phải là Adsconex hoặc Slink mới đăng lại được.")
             return
-        if not str(cfg.get("adsconex_api_key") or "").strip():
-            messagebox.showwarning(APP_NAME, "Chưa nhập Adsconex API Token trong tab Adsconex.")
-            return
+        if is_ads:
+            if not str(cfg.get("adsconex_api_key") or "").strip():
+                messagebox.showwarning(APP_NAME, "Chưa nhập Adsconex API Token trong tab Adsconex.")
+                return
+        else:
+            if not str(cfg.get("slink_api_key") or "").strip():
+                messagebox.showwarning(APP_NAME, "Chưa nhập Slink API Token trong tab Slink.")
+                return
         output_root = folder / "Story Outputs"
-        pending = find_pending_adsconex(output_root, cfg)
+        pending = find_pending_slink(output_root, cfg) if is_slink else find_pending_adsconex(output_root, cfg)
         if not pending:
             messagebox.showinfo(APP_NAME, f"Không có bài lỗi nào cần đăng lại trong:\n{output_root}")
             return
@@ -6914,7 +8138,8 @@ class App(tk.Tk):
             "Đăng lại ngay? (không tốn Vision/Writer, video tự đổi tên nếu đăng được)"
         ):
             return
-        self.log(f"ĐĂNG LẠI BÀI LỖI: {len(pending)} bài trong {output_root}")
+        net_name = "Slink" if is_slink else "Adsconex"
+        self.log(f"ĐĂNG LẠI BÀI LỖI ({net_name}): {len(pending)} bài trong {output_root}")
         self.run_btn.config(state="disabled")
 
         def worker():
@@ -6925,7 +8150,8 @@ class App(tk.Tk):
             pipe = StoryPipeline(retry_cfg, self.log, self.progress)
             for work_dir, payload in pending:
                 try:
-                    res = pipe.republish_pending(work_dir, payload)
+                    res = (pipe.republish_pending_slink(work_dir, payload) if is_slink
+                           else pipe.republish_pending(work_dir, payload))
                 except Exception as exc:
                     res = {}
                     self.log(f"[{work_dir.name}] LỖI: {exc}")

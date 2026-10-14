@@ -1,119 +1,122 @@
-# TIẾP TỤC — Phong_ADung (v22.100.17)
+# TIẾP TỤC — Phong_ADung (Video Story Publisher)
 
-Cập nhật: 2026-10-12
+**Cập nhật lần cuối:** 2026-10-14
+**Phiên bản hiện tại:** v22.100.18
+**File chính:** `viet_drama_V22.99_stable_folder.py` (single-file, LF, ~8.6k dòng)
 
-## TRẠNG THÁI: CHẠY ỔN
-- File chính: `viet_drama_V22.99_stable_folder.py` (**LF-only**, py_compile OK, 7419 dòng).
-- Bản đang chạy: **v22.100.17**. GitHub + ổ Z đã đồng bộ (15/15 MD5 khớp).
-- Config thật: `C:\Users\Admin\.video_story_publisher_V22.99.json` (74 key, KHÔNG có placeholder).
-- **KHÔNG được ghi đè config này.** Test GUI phải kiểm MD5 trước/sau.
+---
 
-## LỊCH SỬ BẢN GẦN ĐÂY
-| Bản | Nội dung |
+## VIỆC VỪA LÀM XONG (v22.100.18 — 2026-10-14)
+
+### 1. Thêm net provider `Slink` (đăng lên fableon.treeiq.biz)
+- Net mới trong combobox **"Net đăng bài"**: `("SmartTraffic", "Adsconex", "Slink")`.
+- Tab GUI mới **`Slink`** (sau tab Adsconex): API token (masked + nút Edit Key),
+  base URL, site host, site ID, Category ID (+ nút "Lấy danh sách"), trạng thái bài,
+  nút "Kiểm tra token" / "Mở API token" / "Mở site", nhóm "Thử lại khi net lỗi tạm thời".
+- Pipeline: `_slink_headers` / `_slink_locale` / `_slink_send` (retry lỗi tạm thời)
+  / `publish_slink` (POST `/api/posts/chapter`) / `republish_pending_slink`.
+- Helper module-level: `published_slink_link`, `slink_localized`, `build_slink_chapters`,
+  `slink_pending_path`, `slink_write_pending`, `slink_clear_pending`, `slink_existing_slugs`,
+  `find_pending_slink`.
+- Nút **"Đăng lại bài lỗi"** giờ chạy theo net đang chọn (Adsconex **hoặc** Slink).
+- Key config mới: `slink_api_key`, `slink_base_url`, `slink_site_host`, `slink_site_id`,
+  `slink_category`, `slink_status`, `slink_retry_count`, `slink_retry_delay`.
+
+### 2. Thêm chức năng NGÔN NGỮ (port từ Phong_DHue v23.6)
+- Trước đây ADung **CHƯA có**: chỉ có key `language` chết, không UI, không dùng ở đâu.
+- Đã port: `LANGUAGE_OPTIONS` (16 ngôn ngữ), `LANGUAGE_KEYS`, `LANGUAGE_LABELS`,
+  `language_label`, `language_prompt_name`, `effective_language`, `language_instruction`,
+  `strip_language_rules`, `filename_phrases_for_language`, `fallback_hashtags_for_language`,
+  `_is_default_phrase_list`, `CAPTION_CTA`, `FIRST_PERSON_MARKERS`, `NO_SPACE_LANGUAGES`.
+- UI: tab **SmartTraffic** → khối **"Ngôn ngữ truyện"** (checkbutton + combobox +
+  hint + ghi chú). **Mặc định TẮT = tiếng Anh y như trước.**
+- Áp ngôn ngữ vào: `_writer_json_call`, `_write_chapter_batch`, `_write_one_chapter`,
+  `_story_metadata`, caption Facebook, hashtag fallback, tên file video, `run()` log.
+
+---
+
+## 🔴 BÀI HỌC QUAN TRỌNG (đừng quên)
+
+1. **`FIXED_PRODUCTION_SETTINGS` ghi đè lựa chọn người dùng.**
+   Bản cũ ghim `"language": "English"` → `apply_fixed_production_settings()` sẽ ghi đè
+   mọi lựa chọn → ngôn ngữ KHÔNG BAO GIỜ có tác dụng. **Đã gỡ.** Nếu thêm option mới
+   mà người dùng phải chọn được → **KHÔNG** nhét vào `FIXED_PRODUCTION_SETTINGS`.
+
+2. **fableon CHỈ hiểu `{{nextpage}}`.**
+   Marker `<!--nextpage-->` (dùng cho SmartTraffic) bị server coi là HTML comment
+   và **xoá sạch** → mất phân trang. `publish_slink` **luôn** dùng `{{nextpage}}`,
+   KHÔNG lấy theo `cfg["pagebreak_mode"]`. (Đã đo thật: `plain+htmlcomment` →
+   content lưu `<p>one</p>\n\n\n\n<p>two</p>` — marker biến mất.)
+
+3. **`GET /api/posts/{id}/chapter/{n}` trả `data.post` + `data.chapters`.**
+   `GET /api/posts/{id}/chapters` **KHÔNG** trả `content` (chỉ id/number/title/view_count).
+   Muốn đọc nội dung 1 chương → dùng `/chapter/{n}` và đọc `data.chapters[0].content`.
+
+4. **`publish_slink` KHÔNG tự ghi `publish_result.json`.**
+   Giống hệt Adsconex/SmartTraffic: caller (`run()` khi auto_publish, hoặc
+   `App.publish_current`) mới ghi file đó. Đây là thiết kế, không phải bug.
+
+5. **`paragraphize` escape HTML** → phải chèn marker SAU khi paragraphize
+   (nếu không `{{nextpage}}` bị đổi thành `&lt;!--...--&gt;`).
+
+---
+
+## ĐÃ TEST THẬT (2026-10-14)
+
+| Hạng mục | Kết quả |
 |---|---|
-| v22.100.12 | Chia nhỏ request >36KB (502), nút đăng lại nhặt 502, chống trùng qua /series, fix `https://https://`, fix NameError `e` |
-| v22.100.13 | **Fix TREO khi đăng bài do LỆCH ĐỒNG HỒ** (3 lớp: giờ máy, bỏ mark tương lai, chờ tối đa 25s) |
-| v22.100.17 | **Option chế độ viết chapter** — tab Vilao AI khung "Hiệu suất": `batch` (mặc định, 2-2-2-1 song song như cũ) / `half` (chia đôi, 2 request chạy song song — nhanh ~1,8×, rẻ token ~2×) |
-| v22.100.16 | **Logo YouTube trên ảnh bìa website** — tab Image hosting: ô tick + kiểu `play`/`logo` + kích thước %, nút "Xem trước logo". Mặc định TẮT. Chỉ ảnh bìa web 290×290, KHÔNG đụng thumbnail Facebook |
-| v22.100.15 | **Vá crash PATH** — `configure_ffmpeg()` chỉ thêm ffmpeg vào PATH 1 lần (trước: mỗi video thêm 1 lần → nổ `ValueError` ở ~lần 454) |
-| v22.100.14 | **Không lưu thư mục frames** — tự xoá ảnh trung gian sau khi xong; có ô tick "Giữ lại thư mục frames" |
+| `py_compile` + import module | OK |
+| GUI khởi tạo | OK — 8 tab: Kịch bản & Prompt, Vilao AI, SmartTraffic, Adsconex, **Slink**, Image hosting, FFmpeg, Hướng dẫn |
+| Combobox ngôn ngữ | 16 giá trị, mặc định TẮT |
+| Checkbox ngôn ngữ bật/tắt | combo readonly/disabled + hint đổi đúng |
+| Ô "Câu chèn trong tên file" tự đổi theo ngôn ngữ | OK (chỉ khi còn bản mặc định) |
+| `publish_slink` E2E thật lên fableon | 201 → 2 chapter lưu đúng → xoá 200 |
+| Marker `{{nextpage}}` lưu trên server | OK (còn nguyên trong content) |
+| Retry: base URL sai → lưu pending → sửa URL → đăng lại OK | OK, pending tự xoá sau khi thành công |
+| Token Slink GET /posts | 200 |
+| Mặc định cũ không đổi (`effective_language` = English khi TẮT) | OK |
+| Config thật MD5 | `8d3536e3337123f88ea6a4387454c8dd` — KHÔNG đổi |
 
-## CHẾ ĐỘ VIẾT CHAPTER (v22.100.17) — SỐ ĐO THẬT
-Config key `chapter_gen_mode`, GUI ở tab **Vilao AI** → khung "Hiệu suất" → "Chế độ chapter".
-- `batch` (**mặc định**, y như cũ): nhóm 2 chapter/request, 2 request song song mỗi wave → 10 chương = 5 request.
-- `half`: chia đôi số chapter thành 2 request, **chạy song song** → 10 chương = 2 request.
+**Đã dọn sạch bài test** — site fableon còn đúng 3 bài gốc
+(`the-baby-in-the-dumpster`, `the-bluebird-file`, `i-found-my-4-year-old-locked-in-the-laundry-room`).
 
-| Kiểu (10 chương) | Request | Thời gian thực | Token | TB từ/chương |
-|---|---|---|---|---|
-| 1 lần gọi cả 10 | 1 | 52,5s | 15.451 | 523 (chương cuối tụt còn 425) |
-| **half (5+5 song song)** | 2 | **32,0s** | **21.593** | **658** |
-| batch 2-2-2-1 | 5 | 57,3s | 44.603 | 854 |
+---
 
-- `half` nhanh ~1,8× và rẻ token ~2× so với `batch` (vì lặp system prompt 2 lần thay vì 5).
-- Chương `batch` dài hơn (854 vs 658 từ) — `half` vẫn nằm trong khoảng yêu cầu 500-800.
-- **Chạy TUẦN TỰ thì vô nghĩa** (65s, còn chậm hơn 1 lần gọi) — `half` bắt buộc phải song song.
-- Số có dao động ±80 từ giữa các lần chạy; xu hướng rõ, số tuyệt đối thì mỗi bài một khác.
-- Đã verify: config CŨ (chưa có key) → tự về `batch`; giá trị lạ (`""`, `"xyz"`, `None`, số) → về `batch`. Không đổi hành vi cũ.
-- Key di sản `single_request_story` / `parallel_chapter_writing` / `chapter_workers` vẫn là **xác chết** (có trong DEFAULT_CONFIG, không dòng nào đọc) — không đụng tới.
+## VIỆC CÒN LẠI / CHƯA LÀM
 
-## NGUYÊN NHÂN GỐC 502 `origin_bad_gateway` (đã chốt — QUAN TRỌNG)
-502 khi đăng Adsconex **KHÔNG phải do token, KHÔNG do payload bẩn**.
-Origin site (dramanest.gigglelo.com) **timeout ~10–11 giây** khi request quá lớn:
-- POST /posts content **> ~50KB** → Cloudflare 502 sau ~11s.
-- Cùng content đó **<= ~40KB** → 201 trong 2–9s.
-- Tất định. Bisect: 1..7 chương (40KB) OK; 1..8 (47KB) 502.
-⇒ Ngưỡng theo **TỔNG dung lượng content**, không theo chương cụ thể. An toàn: ~36KB/request.
+- **Chưa test đăng bài thật bằng GUI** (bấm nút Publish trong tool với 1 video thật).
+  Phần pipeline đã test E2E bằng script, nhưng chưa qua GUI.
+- **Chưa test `republish_failed_posts` từ GUI** với folder lỗi thật.
+- **Bug đã biết (chưa vá):** nhánh `net_provider=Adsconex` thiếu `active_publish_link()`
+  → có thể đăng trùng. Slink cũng chưa có hàm tương đương — hiện dựa vào
+  `slink_existing_slugs()` + `_adsconex_has_published()`.
+- **502 máy Admin** — bằng chứng do ORIGIN site, không phải tool.
+- 35 series test rác trên Adsconex chưa dọn (API không có route xoá → xoá tay trong CMS).
 
-## ĐÃ VÁ (tóm tắt, chi tiết trong git log)
-1. **Chia nhỏ request** (`adsconex_split_chunks` + `_adsconex_send_all`) — vá chính cho 502.
-   - Cắt tại ranh giới `<p>CHAPTER N - ...</p>`; phần 2 trở đi **BẮT BUỘC** kèm `series_id`.
-   - Không có series_id thì **mỗi POST tạo 1 series mới → chương bị tách** (đã bị thật).
-   - Nghỉ giữa các phần: `adsconex_chunk_gap_seconds` (mặc định 3s).
-2. **Nút "Đăng lại bài lỗi"** nhặt cả `401/403/429/500/502/503/504/520-524/network`.
-3. **Chống đăng trùng** — `adsconex_existing_slugs()` đối chiếu với `/series`, bỏ qua bài đã có.
-4. **Nút "Lấy link site"** ra `https://https://...` khi config đã có scheme → đã sửa.
-5. **`NameError: free variable 'e'`** trong `self.after(0, lambda: ...)` → gán `_err = str(e)` trước.
-6. **TREO do lệch đồng hồ** — xem mục dưới.
-7. **Không lưu frames** — `cleanup_frames()` gọi ở 3 chỗ (cuối `run`, khi lỗi batch, khi đăng bài riêng).
+---
 
-## FIX TREO DO LỆCH ĐỒNG HỒ (v22.100.13 — QUAN TRỌNG)
-Triệu chứng: log dừng ngay sau "Adscene phần 2/2 | 29139 ký tự", treo >7 phút không báo lỗi.
-KHÔNG phải lỗi mạng/origin.
+## LỆNH THƯỜNG DÙNG
 
-NGUYÊN NHÂN GỐC: trần tốc độ đăng dùng chung trên ổ Z tính giãn cách bằng mtime của file mark.
-Hai máy lệch đồng hồ (đo thật: 45 giây) → mtime mark do máy kia ghi nằm ở **TƯƠNG LAI** →
-`since_last` ÂM → `_adsconex_take_shared_slot` lặp `while True` mãi mãi → TREO VĨNH VIỄN.
-
-ĐÃ VÁ (3 lớp):
-1. Giãn cách tính theo **ĐỒNG HỒ CỦA CHÍNH MÁY** (`_adsconex_local_last_post`).
-2. Bỏ qua mark có mtime ở TƯƠNG LAI khi đếm cửa sổ.
-3. `ADSCONEX_RATE_SLOT_WAIT_MAX = 25.0` → quá hạn thì giãn cách tại máy thay vì treo.
-
-**NÊN đồng bộ đồng hồ trên MỌI máy chạy tool** (`w32tm /resync`).
-
-## API ADSCONEX — GHI NHỚ
-- Auth: `Authorization: Bearer <token>`; base `https://dramanest.gigglelo.com/api`.
-- **Đèn báo token sạch = `GET /api/categories`** (200 = OK). KHÔNG dùng POST để test.
-- Test tool: `POST {"title":""}` → 422 (không tạo bài). **CHỈ dùng cách này khi cần test.**
-- `POST /posts` `mode="chapter"`: tự tách theo marker `CHAPTER N - Title`; intro → mô tả series.
-- **`mode=chapter` KHÔNG tự gộp theo `permalink`** — muốn gộp phải truyền `series_id`.
-- Sửa bài: `PUT /api/posts/{ID số}` (slug → 405). `next_chapter`/`prev_chapter` phải cùng series.
-- **KHÔNG có route xoá**: `DELETE /api/series/{id}` → 404; `DELETE /api/posts/{id}` → 405.
-- Rate-limit: 6 bài/phút, cửa sổ 60s, mutex chung trên ổ Z `_adsconex_rate`.
-
-## HOST
-- API/đăng bài: `dramanest.gigglelo.com` (**SỐNG**, 401 khi thiếu token = đúng).
-- Site hiển thị: `drama.viralstory.biz` (**SỐNG**, 200).
-- `usjusticereport.cfx.bz` = **HOST CHẾT** — đã bỏ hẳn khỏi cả 2 tool, đừng thêm lại.
-
-## VIỆC CÒN LẠI (cần xoá TAY trong CMS — API không có route xoá)
-**35 series rác** còn trên site (kiểm tra 2026-10-12):
-- `[ZZT]` — 14 series (ids: 5305, 5313, 5323, 5395, 5409, 5416, 5432, 5446, ...)
-- `[ZZBURST10]` — 10 series (5476–5485)
-- `[ZZBURST6]` — 6 series (5462–5467)
-- `[ZZCONC3]` — 3 series (5447–5449)
-- `[ZZCONC2]` — 2 series (5434, 5435)
-
-Ngoài ra còn ~118 bài test rác (API không có route xoá → xoá tay trong CMS).
-
-## LỆNH HAY DÙNG
 ```bash
-cd C:/Users/Admin/Desktop/Phong_ADung
-PY=C:/Users/Admin/AppData/Local/Programs/Python/Python313/python.exe
-$PY -m py_compile viet_drama_V22.99_stable_folder.py   # kiem cu phap
-$PY release.py 22.100.15 "mo ta thay doi"              # phat hanh (bump + push GitHub)
-$PY sync_z.py                                          # copy len Z + doi chieu MD5
-```
-Chạy tool: double-click `Mo_An.vbs` (ẩn cửa sổ cmd) hoặc `CHAY_Phong_ADung.bat` (xem log).
+# Compile check
+"C:/Users/Admin/AppData/Local/Programs/Python/Python313/python.exe" -m py_compile \
+  "C:/Users/Admin/Desktop/Phong_ADung/viet_drama_V22.99_stable_folder.py"
 
-## BÀI HỌC KỸ THUẬT
-- **502 = request quá lớn**, KHÔNG phải token/payload. An toàn ~36KB/request.
-- **Số "bẩn" từ model** (`11．11` dấu chấm fullwidth U+FF0E) làm `float()` crash.
-  Đã có `safe_float`/`safe_int` (24 chỗ dùng) — **mọi số đọc từ model PHẢI đi qua 2 hàm này**.
-- **VBScript KHÔNG có escape `\"`** — muốn 1 dấu `"` phải viết `""`.
-- **File tool là LF** — đọc/ghi `newline=""` (git blob cũng LF).
-- **`.bat`/`.vbs` cho máy khác: ASCII-only + CRLF + `pause`** (LF + tiếng Việt → tự tắt).
-- **`config.yaml`/`.env` ghi bằng .NET `WriteAllText` + `UTF8Encoding($false)`** → không BOM.
-- Bộ cài `.bat` **KHÔNG BAO GIỜ ghi đè `.env`** nếu đã tồn tại; thiếu token thì chỉ VÁ THÊM.
-- **Test GUI an toàn**: chạy `App()` rồi `destroy()`, so MD5 config trước/sau.
-- Tool gửi header Chrome đầy đủ để qua Cloudflare (urllib trần bị `Error 1010`).
+# Phát hành bản mới
+cd "C:/Users/Admin/Desktop/Phong_ADung"
+python release.py 22.100.19 "Mô tả thay đổi"
+
+# Sync lên ổ Z (kèm đối chiếu MD5)
+python sync_z.py
+```
+
+---
+
+## BỐI CẢNH
+
+- **Backup bản cũ:** `_backup_old/viet_drama_V22.99_stable_folder_v22.100.17_20261014_1052.py`
+- **Nguồn port ngôn ngữ:** `C:/Users/Admin/Desktop/Phong_DHue/viet_drama_V23.6_dashboard_thumbnail.py` (v23.6.19)
+- **Config thật:** `~/.video_story_publisher_V22.99.json` (74 key) — **KHÔNG được ghi đè**
+- **Ổ Z:** `Z:/HQData-2/TOOLS TỔNG HỢP/TOOLS UPDATE CUỐI/Phong_ADung/`
+- **fableon CMS:** site id `724`, category `266`, API base `https://fableon.treeiq.biz/api`,
+  auth Bearer `id|secret`, tài liệu đầy đủ ở `C:/Users/Admin/Desktop/fableon_API_va_viet_chapter.md`

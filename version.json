@@ -1,5 +1,5 @@
 {
-  "version": "22.100.17",
-  "notes": "Them option chon che do viet chapter (tab Vilao AI): batch = nhu hien tai 2-2-2-1 song song (mac dinh), half = chia doi chapter thanh 2 request chay song song (nhanh hon, re token hon). Mac dinh giu batch nen moi thu van nhu cu.",
-  "date": "2026-10-12"
+  "version": "22.100.18",
+  "notes": "Them net Slink (fableon.treeiq.biz) + chuc nang ngon ngu (16 thu tieng, mac dinh TAT)",
+  "date": "2026-10-14"
 }
