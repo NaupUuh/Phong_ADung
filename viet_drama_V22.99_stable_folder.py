@@ -265,7 +265,7 @@ CRASH_LOG_FILE = Path.cwd() / "video_story_publisher_crash_V22.99.log"
 
 # Phiên bản tool. updater.py đọc dòng này để so với version.json trên GitHub;
 # release.py tự ghi lại mỗi lần phát hành bản mới.
-APP_VERSION = "22.100.18"
+APP_VERSION = "22.100.19"
 
 def _write_crash_log(title: str, exc_type=None, exc_value=None, exc_tb=None, extra: str = ""):
     """Write fatal/unhandled errors to a persistent text file."""
@@ -6363,6 +6363,16 @@ class App(tk.Tk):
             pass
 
     def _build(self):
+        # ---------------- NUT CAP NHAT (goc phai tren, DOC LAP) ----------------
+        # Tach rieng thanh mot thanh o tren cung, khong nam trong khung nao khac,
+        # de khong bi an/hien theo "Thu gon" va khong lan voi tien do.
+        corner = ttk.Frame(self)
+        corner.pack(fill="x", padx=8, pady=(6, 0))
+        self.update_btn = ttk.Button(
+            corner, text="⬆ Cập nhật", command=self._check_update
+        )
+        self.update_btn.pack(side="right")
+
         dashboard = ttk.LabelFrame(self, text="Tiến độ toàn bộ", padding=8)
         dashboard.pack(fill="x", padx=8, pady=6)
         ttk.Label(dashboard, textvariable=self.summary_text,
@@ -6428,6 +6438,43 @@ class App(tk.Tk):
 
         ttk.Label(source, text="Chọn folder cha: tự quét mọi folder con; mỗi video đăng một bài rồi đổi tên theo ID. Folder bắt buộc Auto publish.",
                   foreground="#555").grid(row=4, column=0, columnspan=5, sticky="w", pady=(2, 0))
+
+        # ------------------------------------------------------------
+        # NGON NGU TRUYEN (mac dinh TAT -> giu nguyen hanh vi cu: tieng Anh)
+        # Dat ngay tai muc 1 "Dau vao": ap cho MOI net dang bai duoc chon.
+        # ------------------------------------------------------------
+        lang_box = ttk.LabelFrame(source, text="Ngôn ngữ truyện (áp cho mọi web/net đã chọn)")
+        lang_box.grid(row=5, column=0, columnspan=5, sticky="ew", pady=(8, 2))
+        lang_box.columnconfigure(1, weight=1)
+
+        ttk.Checkbutton(
+            lang_box,
+            text=("Viết truyện + caption + tên file bằng ngôn ngữ chọn bên dưới "
+                  "(mặc định TẮT = tiếng Anh như cũ)"),
+            variable=self.vars["language_enabled"],
+            command=self._refresh_language_state
+        ).grid(row=0, column=0, columnspan=3, sticky="w", pady=(2, 4))
+
+        ttk.Label(lang_box, text="Ngôn ngữ", width=26).grid(row=1, column=0, sticky="w", pady=3)
+        self.language_combo = ttk.Combobox(
+            lang_box, textvariable=self.vars["language"],
+            values=LANGUAGE_KEYS, state="readonly", width=30
+        )
+        self.language_combo.grid(row=1, column=1, sticky="w", padx=(6, 8), pady=3)
+        self.language_hint = ttk.Label(lang_box, text="", foreground="#0a7", width=24)
+        self.language_hint.grid(row=1, column=2, sticky="w", pady=3)
+
+        self.language_note = ttk.Label(
+            lang_box,
+            text="",
+            foreground="#555", justify="left", wraplength=950
+        )
+        self.language_note.grid(row=2, column=0, columnspan=3, sticky="w", pady=(6, 2))
+        # O 'Cau chien trong ten file' nam o tab khac; theo doi ca 2 bien de cap nhat
+        # ngay khi nguoi dung doi lua chon (khong phai bam Save moi thay).
+        self.vars["language"].trace_add("write", lambda *a: self._refresh_language_state())
+        self.vars["language_enabled"].trace_add("write", lambda *a: self._refresh_language_state())
+        self._refresh_language_state()
 
         # ---------------- TABS ----------------
         nb = ttk.Notebook(top, height=240)
@@ -6602,48 +6649,8 @@ class App(tk.Tk):
         ).pack(side="left")
 
         # ------------------------------------------------------------
-        # NGON NGU TRUYEN (mac dinh TAT -> giu nguyen hanh vi cu: tieng Anh)
+        # NGON NGU TRUYEN: da chuyen len muc 1 "Dau vao" (khong con o tab nay).
         # ------------------------------------------------------------
-        lang_box = ttk.LabelFrame(st, text="Ngôn ngữ truyện")
-        lang_box.grid(row=8, column=0, columnspan=3, sticky="ew", pady=(10, 4))
-        lang_box.columnconfigure(1, weight=1)
-
-        ttk.Checkbutton(
-            lang_box,
-            text=("Viết truyện + caption + tên file bằng ngôn ngữ chọn bên dưới "
-                  "(mặc định TẮT = tiếng Anh như cũ)"),
-            variable=self.vars["language_enabled"],
-            command=self._refresh_language_state
-        ).grid(row=0, column=0, columnspan=3, sticky="w", pady=(2, 4))
-
-        ttk.Label(lang_box, text="Ngôn ngữ", width=22).grid(row=1, column=0, sticky="w", pady=3)
-        self.language_combo = ttk.Combobox(
-            lang_box, textvariable=self.vars["language"],
-            values=LANGUAGE_KEYS, state="readonly", width=30
-        )
-        self.language_combo.grid(row=1, column=1, sticky="w", pady=3)
-        self.language_hint = ttk.Label(lang_box, text="", foreground="#0a7", width=24)
-        self.language_hint.grid(row=1, column=2, sticky="w", pady=3)
-
-        self.language_note = ttk.Label(
-            lang_box,
-            text=(
-                "Khi TẮT: mọi thứ chạy y như trước (tiếng Anh), KHÔNG đổi gì.\n"
-                "Khi BẬT: Writer viết toàn bộ truyện, tiêu đề chapter, metadata, caption "
-                "Facebook và tên file video bằng ngôn ngữ đã chọn — kể cả khi kịch bản/hook "
-                "nguồn là tiếng Anh thì vẫn dịch và viết lại. Tên riêng (tên nhân vật, địa danh) "
-                "giữ nguyên.\n"
-                "Đổi ngôn ngữ KHÔNG tự đổi danh sách 'Câu chèn trong tên file' anh đã tự nhập — "
-                "chỉ thay khi ô đó còn là bản mặc định."
-            ),
-            foreground="#555", justify="left", wraplength=950
-        )
-        self.language_note.grid(row=2, column=0, columnspan=3, sticky="w", pady=(6, 2))
-        # O 'Cau chien trong ten file' nam o tab khac; theo doi ca 2 bien de cap nhat
-        # ngay khi nguoi dung doi lua chon (khong phai bam Save moi thay).
-        self.vars["language"].trace_add("write", lambda *a: self._refresh_language_state())
-        self.vars["language_enabled"].trace_add("write", lambda *a: self._refresh_language_state())
-        self._refresh_language_state()
 
         # ============================================================
         # ADSCONEX (nền Blogbio) - token + site/author/category riêng
@@ -6988,17 +6995,13 @@ class App(tk.Tk):
             actions, text="Chẩn đoán máy", command=self.export_machine_diagnostics
         ).pack(side="left", padx=8)
 
-        self.update_btn = ttk.Button(
-            actions, text="⬆ Cập nhật", command=self._check_update
-        )
-        self.update_btn.pack(side="left", padx=8)
+        # Nut "⬆ Cập nhật" da duoc dat o goc phai tren (dashboard), khong o day nua.
 
         ttk.Button(
             actions,
             text="PUBLISH TO WEBSITE",
             command=self.publish_current
         ).pack(side="left", padx=8)
-
         ttk.Label(
             top,
             text=(
@@ -7244,12 +7247,18 @@ class App(tk.Tk):
         try:
             if enabled:
                 self.language_note.configure(
-                    text=("Đang áp cho TOÀN BỘ câu chuyện: tiêu đề, meta, TÊN từng chapter, "
-                          f"NỘI DUNG từng chapter và caption Facebook — viết bằng {language_label(key)}. "
-                          "Không trộn ngôn ngữ khác, kể cả khi video/kịch bản gốc là tiếng Anh."))
+                    text=(f"Đang BẬT: Writer viết toàn bộ truyện, tiêu đề chapter, metadata, caption "
+                          f"Facebook và tên file video bằng {language_label(key)} — kể cả khi kịch bản/hook "
+                          "nguồn là tiếng Anh thì vẫn dịch và viết lại. Tên riêng (tên nhân vật, địa danh) "
+                          "giữ nguyên.\n"
+                          "Áp cho MỌI net đang chọn ở 'Net đăng bài' (SmartTraffic / Adsconex / Slink) — "
+                          "đổi net không phải bật lại.\n"
+                          "Đổi ngôn ngữ KHÔNG tự đổi danh sách 'Câu chèn trong tên file' anh đã tự nhập — "
+                          "chỉ thay khi ô đó còn là bản mặc định."))
             else:
                 self.language_note.configure(
-                    text="Đang TẮT: truyện viết mặc định bằng tiếng Anh như trước giờ.")
+                    text=("Đang TẮT: mọi thứ chạy y như trước (tiếng Anh), KHÔNG đổi gì — "
+                          "kể cả khi đổi net đăng bài."))
         except Exception:
             pass
         try:
