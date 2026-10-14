@@ -1,83 +1,82 @@
 # TIẾP TỤC — Phong_ADung
 
-**Cập nhật lần cuối:** 2026-10-14 16:30
-**Phiên bản hiện tại:** **v22.100.20** (đã release GitHub + sync ổ Z)
+**Cập nhật lần cuối:** 2026-10-14 17:22
+**Phiên bản hiện tại:** **v22.100.21** (đã release GitHub + sync ổ Z)
 **File chính:** `viet_drama_V22.99_stable_folder.py` (LF, 0 dòng CRLF, UTF-8 no BOM)
-**Nhánh:** main — commit `1b94404`
+**Nhánh:** main — commit `088a57d`
 
 ---
 
-## 1. Vừa xong trong phiên này (v22.100.20) — NGÔN NGỮ CHO SLINK
+## 1. Vừa xong trong phiên này (v22.100.21) — NÚT PLAY TRẮNG
 
-### Vấn đề phát hiện trên bài THẬT
-Bài anh đăng hôm nay lên Slink (`682455`, `682375`) có **nội dung tiếng Việt nhưng bị gắn nhãn `en`**:
+Anh gửi ảnh thumbnail Facebook có nút play **trắng** và yêu cầu: *"Phần logo youtube
+thêm cho a nút play trắng như này, tự tìm rồi down về cho a"*.
 
-```
-title = {"en": "Chiếc Xe Đen Trên Con Đường Đất"}     <- sai, phải là "vi"
-```
+### Kết quả đo từ ảnh tham chiếu
+Nút trong ảnh = **vòng tròn trắng MỜ + tam giác trắng ĐẶC** (kiểu overlay play của
+Facebook), **KHÔNG** phải nút play đỏ YouTube đang có.
 
-Nguyên nhân: `publish_slink` gửi `title` / `content` dạng **CHUỖI THƯỜNG**.
-fableon gặp chuỗi thì **luôn nhét vào key `en`**, bất kể nội dung viết bằng ngôn ngữ nào.
-`seo_title` / `seo_description` thì gửi `{locale: text}` **chỉ 1 key** → theme render
-`<title>` và `og:title` từ key `en` nên nếu chỉ có `{vi:...}` thì các thẻ đó **rỗng**.
+- Ảnh 320×313, thumbnail ở x≈54..150; nút ở tâm **(100,166)**, đường kính **~20px**
+  trên thumbnail rộng ~96px → **≈ 21%** chiều rộng ảnh.
+- Đo hướng tâm: nền quanh nút `lum≈66` → vòng mờ `lum≈70..76` (sáng hơn nền
+  ~5-10 đơn vị) → giữa `lum≈49..63`. Tức vòng **hơi sáng hơn nền**, không phải
+  trắng đặc.
+- Tam giác: `th=10px, tw=9px` → **tw/th ≈ 0.90**; `th/D ≈ 0.45..0.50`.
 
-### Cách vá
-Thêm helper `slink_localized_value(text, locale)` (module-level, cạnh `slink_localized`):
+### Cách làm
+**Không tải file PNG ngoài** (mọi nguồn tải về đều lệch kiểu hoặc vướng license).
+Vẽ bằng PIL, thêm **kiểu thứ 3** `white` bên cạnh `play` / `logo`:
 
 ```python
-def slink_localized_value(text, locale) -> dict:
-    out = {"en": text}                 # LUON kem 'en' lam fallback
-    if locale and locale != "en":
-        out[locale] = text
-    return out
+def _draw_white_play_badge(base, scale, shadow=True):
+    # ve o 4x roi LANCZOS thu nho -> khong rang cua
+    # vong: fill (255,255,255,95) + vien mong outline alpha 130
+    # tam giac: th = S*0.33, tw = th*0.90, lech phai S*0.025
 ```
 
-Đã áp vào **4 field** trong `publish_slink`:
-- `title`  → `slink_localized_value(title_text, locale)`
-- `content` (intro) → `slink_localized_value("<p>...</p>", locale)`
-- `seo_title` → `slink_localized_value(seo_title, locale)`
-- `seo_description` → `slink_localized_value(seo_desc, locale)`
+Trong `draw_youtube_badge()`: thêm nhánh `is_white` (nhận cả `white` và `trang`)
+→ gọi `_draw_white_play_badge`. Khi `style="white"` thì **bỏ qua** hình chữ nhật
+đỏ, dùng đường kính = `scale × cạnh ngắn`.
 
-Thêm hằng `SLINK_LOCALES = ("en", "vi", "zh", "ko")` (fableon chỉ có 4 slot ngôn ngữ).
-
-`_slink_locale()` giữ nguyên mapping: `Vietnamese→vi`, `Chinese→zh`, `Korean→ko`,
-**mọi ngôn ngữ khác → `en`** (fableon không có slot riêng cho Nhật/Hàn/Tây Ban Nha...).
-→ 16 ngôn ngữ của tool vẫn chạy đủ, 3 ngôn ngữ có slot riêng thì ghi đúng slot.
-
-**Khi TẮT ngôn ngữ** (`language_enabled=False`) → locale = `en` → payload y hệt trước đây.
-Không phá hành vi cũ.
+### 4 chỗ đã sửa
+| # | Vị trí | Thay đổi |
+|---|---|---|
+| 1 | `draw_youtube_badge` (module-level) | thêm `_draw_white_play_badge()` + nhánh `is_white` |
+| 2 | `StoryPipeline._youtube_badge_settings` | `("play","logo")` → `("play","logo","white")` |
+| 3 | `App.preview_youtube_badge` | cùng danh sách trên (nút "Xem trước logo") |
+| 4 | GUI tab Image hosting | Combobox `values=("play","logo","white")` + nhãn mô tả kiểu `white` |
 
 ---
 
-## 2. Đã verify (test THẬT trên site, không mock)
+## 2. Đã verify (test THẬT)
 
 | Hạng mục | Kết quả |
 |---|---|
 | `py_compile` | COMPILE_OK |
-| Import module | OK — `slink_localized_value`, `SLINK_LOCALES` có mặt |
-| Payload dựng ra (locale `vi`) | `title` = `{"en": "...", "vi": "..."}`, `content`/`seo_*` tương tự |
-| 16 ngôn ngữ → locale | Vietnamese→vi, Chinese→zh, Korean→ko, còn lại→en ✅ |
-| TẮT ngôn ngữ → payload | y hệt bản cũ (chỉ `{"en": ...}`) ✅ |
-| **POST thật lên fableon** (bài test `684823`) | **201**, server lưu đúng `{"en": "...", "vi": "..."}` cho cả 4 field ✅ |
-| `title_en` (cột phụ) | vẫn được server tự điền ✅ |
-| Xoá bài test | `DELETE` → 200, `GET` lại → **404** (đã xoá thật) ✅ |
-| Site sạch | còn đúng **5 bài** (2 bài anh đăng + 3 bài gốc) |
-| Config thật `~/.video_story_publisher_V22.99.json` | **KHÔNG bị ghi đè** (mtime 11:56, release chạy 16:27) |
-| File chính + `version.json` | LF, 0 dòng CRLF |
-| Backup bản gốc | `_backup_old/...v22.100.19_20261014_1626.py` (lấy từ `git show HEAD`) |
-| Sync ổ Z | **18/18 MD5 khớp** |
+| File chính | LF, **0 dòng CRLF** |
+| `make_social_thumbnail(badge_style="white")` | chạy OK, ảnh 290×290 ra đúng nút trắng |
+| Soi ảnh bằng vision | **"vòng tròn trắng mờ + tam giác trắng đặc, rất giống nút play overlay Facebook"** ✅ |
+| Kiểu cũ `play` / `logo` | vẫn chạy y như trước (8068B / 9011B) ✅ |
+| Style lạ (`xyz`) | fallback về `play`, không crash ✅ |
+| Scale biên 0.05 / 0.95 | không crash ✅ |
+| `_youtube_badge_settings` | `white`/`WHITE`/`  white  ` → `white`; `bogus` → `play`; TẮT → `('',0.0)` ✅ |
+| Bóng đổ trên nền sáng | nhờ shadow vẫn thấy được nút (nền trắng nhạt là ca xấu nhất) |
+| Config thật `~/.video_story_publisher_V22.99.json` | **KHÔNG bị ghi đè** (mtime 11:56) |
+| Backup bản gốc | `_backup_old/...v22.100.20_20261014_1719.py` (từ `git show HEAD`) |
+| Sync ổ Z | **19/19 MD5 khớp** |
 
 ---
 
 ## 3. Còn lại / chưa trả lời
 
-- **Nhánh Slink chưa có `active_publish_link()` riêng** — hiện dựa vào `slink_existing_slugs()`,
-  nên **chạy lại cùng folder có thể đăng trùng**. Anh chưa trả lời có muốn vá không.
-- **Chưa test đăng thật qua GUI với video thật** (pipeline đã test E2E bằng script, chưa bấm nút trong GUI).
-- **2 bài cũ hôm nay (682455, 682375) vẫn gắn nhãn `en`** — đã đăng trước khi vá.
-  Nếu muốn đúng, phải sửa tay trong CMS (`PUT /api/posts/{id}` với dict `{en,vi}`) hoặc đăng lại.
+- **Chưa bấm nút "Xem trước logo" trong GUI** để xem thực tế (đã test bằng script
+  qua đúng hàm `make_social_thumbnail`; GUI chỉ gọi lại hàm đó).
+- **Nhánh Slink chưa có `active_publish_link()` riêng** — chạy lại cùng folder có
+  thể đăng trùng. Anh chưa trả lời có muốn vá không.
+- **Chưa test đăng thật qua GUI với video thật** (pipeline đã test E2E bằng script).
+- **2 bài Slink cũ (682455, 682375) vẫn gắn nhãn `en`** — đăng trước khi vá v22.100.20.
 - Câu hỏi treo cũ: có gộp option `single` không — chưa trả lời.
-- Câu hỏi treo cũ: đổi tool sang xuất 1200x630 (thumbnail FB) không — chưa trả lời.
+- Câu hỏi treo cũ: đổi tool sang xuất 1200×630 (thumbnail FB) không — chưa trả lời.
 - 35 series test rác trên Adsconex chưa dọn (API không có route xoá → xoá tay trong CMS).
 
 ---
@@ -85,12 +84,15 @@ Không phá hành vi cũ.
 ## 4. Bối cảnh cần nhớ
 
 - **Tool này KHÔNG import module nội bộ** — single-file (trừ `updater`).
+- **Logo YouTube trên ảnh bìa:** mặc định **TẮT**; CHỈ vẽ lên ảnh bìa **website 290×290**,
+  ảnh bìa Facebook **KHÔNG** bị ảnh hưởng (`make_social_thumbnail` cho FB gọi không badge).
+- 3 kiểu: `play` (ô đỏ bo góc + tam giác), `logo` (ô đỏ + chữ "YouTube"), `white`
+  (vòng trắng mờ + tam giác trắng). Scale = % chiều rộng, kẹp **10..60%**.
 - API key Slink **chỉ đọc từ ô nhập trong GUI**, KHÔNG đọc `.env`.
-- **fableon CHỈ hiểu `{{nextpage}}`**; `<!--nextpage-->` bị server coi là HTML comment và xoá sạch.
-  → `publish_slink` KHÔNG lấy theo `cfg["pagebreak_mode"]`, LUÔN dùng `{{nextpage}}`.
+- **fableon CHỈ hiểu `{{nextpage}}`**; `<!--nextpage-->` bị server xoá sạch.
 - `published_slink_link` KHÔNG đoán link — lấy từ response (`/{slug}`).
-- fableon API base `https://fableon.treeiq.biz/api`, site id `724`, category `266`, host `fableon.treeiq.biz`.
-- **Đăng bài lên fableon là TẠO THẬT ngay** — muốn dò schema phải dùng payload THIẾU field bắt buộc để ăn 422.
+- fableon API base `https://fableon.treeiq.biz/api`, site id `724`, category `266`.
+- **Đăng bài lên fableon là TẠO THẬT ngay** — dò schema phải dùng payload THIẾU field.
 - **KHÔNG BAO GIỜ in giá trị credential** (token Slink, mật khẩu site...) — chỉ nêu TÊN.
 - Trước khi rời tool: ghi file này → commit/push → sync Z.
 - Python: `C:/Users/Admin/AppData/Local/Programs/Python/Python313/python.exe`
