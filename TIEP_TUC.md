@@ -1,50 +1,77 @@
 # TIẾP TỤC — Phong_ADung
 
-**Cập nhật lần cuối:** 2026-10-14 17:22
-**Phiên bản hiện tại:** **v22.100.21** (đã release GitHub + sync ổ Z)
+**Cập nhật lần cuối:** 2026-10-14 21:56
+**Phiên bản hiện tại:** **v22.100.22** (đã release GitHub + push + sync ổ Z)
 **File chính:** `viet_drama_V22.99_stable_folder.py` (LF, 0 dòng CRLF, UTF-8 no BOM)
-**Nhánh:** main — commit `088a57d`
+**Nhánh:** main — commit `7919a8b`
 
 ---
 
-## 1. Vừa xong trong phiên này (v22.100.21) — NÚT PLAY TRẮNG
+## 1. Vừa xong trong phiên này (v22.100.22) — NÚT PLAY TRẮNG DÙNG PNG THẬT
 
-Anh gửi ảnh thumbnail Facebook có nút play **trắng** và yêu cầu: *"Phần logo youtube
-thêm cho a nút play trắng như này, tự tìm rồi down về cho a"*.
+### Bối cảnh
+v22.100.21 đã thêm kiểu `white` nhưng **vẽ bằng PIL** (vòng trắng mờ alpha 95 +
+tam giác) vì không tìm được file PNG ưng ý. Anh gửi ảnh nút play tham chiếu
+(`img_c1a7ffded6c0.jpg`) rồi **gửi tiếp file PNG trong suốt thật**
+(`img_6b3ac371b2c4.png`) và nói: *"E dùng file này cho a, đã xoá background"*.
 
-### Kết quả đo từ ảnh tham chiếu
-Nút trong ảnh = **vòng tròn trắng MỜ + tam giác trắng ĐẶC** (kiểu overlay play của
-Facebook), **KHÔNG** phải nút play đỏ YouTube đang có.
+### Phát hiện quan trọng: 2 ảnh anh gửi KHÁC NHAU về bản chất
+| | `img_c1a7ffded6c0.jpg` (cũ) | `img_6b3ac371b2c4.png` (mới) |
+|---|---|---|
+| Định dạng | JPEG, **bàn cờ bake sẵn** (ô 22px, 233/252) | **PNG alpha thật** |
+| Đĩa | **vòng ĐEN mờ** alpha ≈ 0.14–0.19, xuyên nền | **xám đặc #B0B0B0 (176)**, alpha 255, viền cứng |
+| Shadow | không | **không** |
+| Tam giác | trắng đặc, **bo góc** | trắng đặc, **NHỌN** |
+| Đường kính | ~66% khung | **100% khung** |
 
-- Ảnh 320×313, thumbnail ở x≈54..150; nút ở tâm **(100,166)**, đường kính **~20px**
-  trên thumbnail rộng ~96px → **≈ 21%** chiều rộng ảnh.
-- Đo hướng tâm: nền quanh nút `lum≈66` → vòng mờ `lum≈70..76` (sáng hơn nền
-  ~5-10 đơn vị) → giữa `lum≈49..63`. Tức vòng **hơi sáng hơn nền**, không phải
-  trắng đặc.
-- Tam giác: `th=10px, tw=9px` → **tw/th ≈ 0.90**; `th/D ≈ 0.45..0.50`.
+→ Kết luận: file PNG mới là **asset thiết kế thật** (đĩa xám đặc + tam giác trắng
+nhọn, không shadow). Bản JPEG cũ chỉ là bản render mờ.
 
-### Cách làm
-**Không tải file PNG ngoài** (mọi nguồn tải về đều lệch kiểu hoặc vướng license).
-Vẽ bằng PIL, thêm **kiểu thứ 3** `white` bên cạnh `play` / `logo`:
+### Số đo chính xác từ PNG (221×221 sau crop)
+- Đĩa: **D = 220px**, tâm (278, 223) trong ảnh gốc 558×447; bbox crop `(168,113)-(389,334)`
+- Màu đĩa: **#B0B0B0 = 176,176,176**; màu tam giác: **255,255,255**
+- Viền: cứng, chuyển alpha 255→0 trong ~2px (không glow)
+- Tam giác: **88×99px** → `th/D = 0.450`, `tw/D = 0.400`, `tw/th = 0.889`
+- Lệch phải: **+0.048D**; lệch dọc: 0.0
+- Diện tích tam giác = 13.6% diện tích đĩa
+
+### Cách làm (thay bản PIL cũ)
+Nhúng **chính file PNG anh gửi** vào code dạng **base64** để tool vẫn là 1 file `.py`:
 
 ```python
+_WHITE_PLAY_B64 = ( "iVBORw0KGgo..."  # PNG 221x221, che do LA, 11352 B
+                    ... )
+_WHITE_PLAY_CACHE = None
+
+def _white_play_asset():
+    """Giai ma + cache anh nut play trang (RGBA). Chi doc 1 lan duy nhat."""
+    global _WHITE_PLAY_CACHE
+    if _WHITE_PLAY_CACHE is None:
+        import io
+        _WHITE_PLAY_CACHE = Image.open(
+            io.BytesIO(base64.b64decode(_WHITE_PLAY_B64))).convert("RGBA")
+    return _WHITE_PLAY_CACHE
+
 def _draw_white_play_badge(base, scale, shadow=True):
-    # ve o 4x roi LANCZOS thu nho -> khong rang cua
-    # vong: fill (255,255,255,95) + vien mong outline alpha 130
-    # tam giac: th = S*0.33, tw = th*0.90, lech phai S*0.025
+    # art = _white_play_asset(); resize LANCZOS theo scale; alpha_composite giua anh
 ```
 
-Trong `draw_youtube_badge()`: thêm nhánh `is_white` (nhận cả `white` và `trang`)
-→ gọi `_draw_white_play_badge`. Khi `style="white"` thì **bỏ qua** hình chữ nhật
-đỏ, dùng đường kính = `scale × cạnh ngắn`.
+**Vì sao base64 mà không phải file rời:** tool là single-file, `updater.py` chỉ tải
+các file trong danh sách cố định (không kéo theo thư mục `assets/`) → nhúng base64
+thì máy khác bấm "Cập nhật" là có ngay, không lo thiếu file.
 
-### 4 chỗ đã sửa
+**Vì sao lưu chế độ `LA`:** ảnh chỉ có 2 màu xám/trắng → LA (grayscale + alpha)
+nén còn 11.4 KB (base64 15.1 KB) thay vì RGBA 15.6 KB. **Roundtrip 0 sai** (đã verify).
+
+### Đã sửa những chỗ nào
 | # | Vị trí | Thay đổi |
 |---|---|---|
-| 1 | `draw_youtube_badge` (module-level) | thêm `_draw_white_play_badge()` + nhánh `is_white` |
-| 2 | `StoryPipeline._youtube_badge_settings` | `("play","logo")` → `("play","logo","white")` |
-| 3 | `App.preview_youtube_badge` | cùng danh sách trên (nút "Xem trước logo") |
-| 4 | GUI tab Image hosting | Combobox `values=("play","logo","white")` + nhãn mô tả kiểu `white` |
+| 1 | `_WHITE_PLAY_B64` + `_white_play_asset()` + `_draw_white_play_badge()` | thay bản vẽ PIL bằng asset PNG thật (base64) |
+| 2 | docstring `draw_youtube_badge` | mô tả `white` = "dia xam dac #B0B0B0 + tam giac trang nhon" |
+| 3 | nhãn GUI tab Image hosting | "vòng tròn trắng mờ" → "vòng tròn xám" |
+
+Phần đọc config (`_youtube_badge_settings`, `preview_youtube_badge`, combobox)
+**giữ nguyên** từ v22.100.21 — vẫn nhận `play`/`logo`/`white`.
 
 ---
 
@@ -52,25 +79,26 @@ Trong `draw_youtube_badge()`: thêm nhánh `is_white` (nhận cả `white` và `
 
 | Hạng mục | Kết quả |
 |---|---|
-| `py_compile` | COMPILE_OK |
+| `py_compile` | OK |
 | File chính | LF, **0 dòng CRLF** |
-| `make_social_thumbnail(badge_style="white")` | chạy OK, ảnh 290×290 ra đúng nút trắng |
-| Soi ảnh bằng vision | **"vòng tròn trắng mờ + tam giác trắng đặc, rất giống nút play overlay Facebook"** ✅ |
-| Kiểu cũ `play` / `logo` | vẫn chạy y như trước (8068B / 9011B) ✅ |
-| Style lạ (`xyz`) | fallback về `play`, không crash ✅ |
-| Scale biên 0.05 / 0.95 | không crash ✅ |
-| `_youtube_badge_settings` | `white`/`WHITE`/`  white  ` → `white`; `bogus` → `play`; TẮT → `('',0.0)` ✅ |
-| Bóng đổ trên nền sáng | nhờ shadow vẫn thấy được nút (nền trắng nhạt là ca xấu nhất) |
-| Config thật `~/.video_story_publisher_V22.99.json` | **KHÔNG bị ghi đè** (mtime 11:56) |
-| Backup bản gốc | `_backup_old/...v22.100.20_20261014_1719.py` (từ `git show HEAD`) |
-| Sync ổ Z | **19/19 MD5 khớp** |
+| **Pixel-exact vs ảnh anh gửi** | **alpha giống hệt từng pixel** (`array_equal`=True), chỉ khác RGB ở vùng alpha=0 (không hiển thị) ✅ |
+| Hình học tái tạo | th/D=0.448, tw/D=0.398, lệch phải +0.048D — khớp ảnh gốc ✅ |
+| `make_social_thumbnail` | `play` / `logo` / `white` đều ra 290×290 OK |
+| Hiển thị 4 nền × 3 scale | nút rõ trên nền tối/trắng/nâu/xanh, **không mất hút trên nền trắng** ✅ |
+| Viền | sạch, không răng cưa (vision xác nhận ở cả scale 20%) |
+| Style lạ (`xyz`, `""`) | fallback `play`, không crash |
+| `white`/`WHITE`/`  White  `/`trang` | đều nhận |
+| Config thật `~/.video_story_publisher_V22.99.json` | **KHÔNG bị ghi đè** (mtime 11:56:44) |
+| Backup bản gốc | `_backup_old/...v22.100.21_20261014_2154.py` (từ `git show HEAD`) |
+| Sync ổ Z | **20/20 MD5 khớp** |
+| `git status` sau release | sạch, đã push (`origin/main` = `7919a8b`) |
 
 ---
 
 ## 3. Còn lại / chưa trả lời
 
-- **Chưa bấm nút "Xem trước logo" trong GUI** để xem thực tế (đã test bằng script
-  qua đúng hàm `make_social_thumbnail`; GUI chỉ gọi lại hàm đó).
+- **Chưa bấm nút "Xem trước logo" trong GUI** (đã test qua đúng hàm
+  `make_social_thumbnail` mà GUI gọi; chưa thao tác chuột trong GUI).
 - **Nhánh Slink chưa có `active_publish_link()` riêng** — chạy lại cùng folder có
   thể đăng trùng. Anh chưa trả lời có muốn vá không.
 - **Chưa test đăng thật qua GUI với video thật** (pipeline đã test E2E bằng script).
@@ -87,7 +115,11 @@ Trong `draw_youtube_badge()`: thêm nhánh `is_white` (nhận cả `white` và `
 - **Logo YouTube trên ảnh bìa:** mặc định **TẮT**; CHỈ vẽ lên ảnh bìa **website 290×290**,
   ảnh bìa Facebook **KHÔNG** bị ảnh hưởng (`make_social_thumbnail` cho FB gọi không badge).
 - 3 kiểu: `play` (ô đỏ bo góc + tam giác), `logo` (ô đỏ + chữ "YouTube"), `white`
-  (vòng trắng mờ + tam giác trắng). Scale = % chiều rộng, kẹp **10..60%**.
+  (**asset PNG thật**: đĩa xám #B0B0B0 + tam giác trắng nhọn). Scale = % chiều rộng,
+  kẹp **10..60%**.
+- **Asset `white` nằm trong `_WHITE_PLAY_B64`** (base64, chế độ LA, 221×221). Muốn đổi
+  ảnh: crop sát alpha>0 → lưu PNG LA `optimize=True, compress_level=9` → base64 →
+  thay chuỗi trong `_WHITE_PLAY_B64`. Nhớ **xoá `_WHITE_PLAY_CACHE`** khi đổi.
 - API key Slink **chỉ đọc từ ô nhập trong GUI**, KHÔNG đọc `.env`.
 - **fableon CHỈ hiểu `{{nextpage}}`**; `<!--nextpage-->` bị server xoá sạch.
 - `published_slink_link` KHÔNG đoán link — lấy từ response (`/{slug}`).
@@ -109,4 +141,19 @@ cd "C:/Users/Admin/Desktop/Phong_ADung"
 "C:/Users/Admin/AppData/Local/Programs/Python/Python313/python.exe" sync_z.py
 # backup bản gốc từ git (KHÔNG copy file đang sửa)
 git show HEAD:viet_drama_V22.99_stable_folder.py > "_backup_old/viet_drama_V22.99_stable_folder_v<ver>_<ts>.py"
+```
+
+---
+
+## 6. Đổi ảnh nút play `white` (khi anh gửi file mới)
+
+```python
+import base64, io, numpy as np
+from PIL import Image
+im = Image.open(SRC).convert("RGBA")
+a = np.asarray(im); ys, xs = np.nonzero(a[:,:,3] > 0)
+asset = im.crop((int(xs.min()), int(ys.min()), int(xs.max())+1, int(ys.max())+1))
+buf = io.BytesIO(); asset.convert("LA").save(buf, format="PNG", optimize=True, compress_level=9)
+b64 = base64.b64encode(buf.getvalue()).decode()
+# chia 96 ky tu/dong, thay vao _WHITE_PLAY_B64, roi dat _WHITE_PLAY_CACHE = None
 ```
