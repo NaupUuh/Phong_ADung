@@ -265,7 +265,7 @@ CRASH_LOG_FILE = Path.cwd() / "video_story_publisher_crash_V22.99.log"
 
 # Phiên bản tool. updater.py đọc dòng này để so với version.json trên GitHub;
 # release.py tự ghi lại mỗi lần phát hành bản mới.
-APP_VERSION = "22.100.20"
+APP_VERSION = "22.100.21"
 
 def _write_crash_log(title: str, exc_type=None, exc_value=None, exc_tb=None, extra: str = ""):
     """Write fatal/unhandled errors to a persistent text file."""
@@ -2751,22 +2751,65 @@ def _youtube_badge_font(size: int):
         return ImageFont.load_default()
 
 
+def _draw_white_play_badge(base, scale: float, shadow: bool = True):
+    """Nut play TRANG: vong tron trang MO + tam giac trang DAC.
+
+    Dung cho kieu "white" (giong nut play overlay tren thumbnail video cua
+    Facebook): nen anh van nhin xuyen qua duoc, vien tron hoi sang hon.
+    Ve o 4x roi thu nho de duong tron/tam giac khong bi rang cua.
+    """
+    from PIL import ImageDraw
+    w, h = base.size
+    ss = 4
+    size = max(24, int(round(min(w, h) * scale)))
+    S = float(size * ss)
+    c = S / 2.0
+    r = c
+
+    canvas = Image.new("RGBA", (int(S), int(S)), (0, 0, 0, 0))
+    d = ImageDraw.Draw(canvas)
+    if shadow:
+        off = S * 0.035
+        d.ellipse([c - r + off, c - r + off, c + r + off, c + r + off],
+                  fill=(0, 0, 0, 110))
+    d.ellipse([c - r, c - r, c + r, c + r], fill=(255, 255, 255, 95))
+    ring = max(2, int(round(S * 0.013)))
+    d.ellipse([c - r, c - r, c + r, c + r], outline=(255, 255, 255, 130), width=ring)
+
+    th = S * 0.33
+    tw = th * 0.90
+    tx = c - tw / 2.0 + S * 0.025
+    ty = c - th / 2.0
+    d.polygon([(tx, ty), (tx, ty + th), (tx + tw, ty + th / 2.0)],
+              fill=(255, 255, 255, 255))
+
+    small = canvas.resize((size, size), Image.LANCZOS)
+    out = base.copy()
+    out.alpha_composite(small, ((w - size) // 2, (h - size) // 2))
+    return out
+
+
 def draw_youtube_badge(img, style: str = "play", scale: float = 0.30, shadow: bool = True):
     """Ve huy hieu YouTube vao CHINH GIUA anh.
 
-    style="play" -> o do bo goc + tam giac trang (giong 1 video chua mo)
-    style="logo" -> o do bo goc + tam giac + chu "YouTube" mau trang
-    scale        -> chieu rong huy hieu / chieu rong anh (0.30 = 30%)
+    style="play"  -> o do bo goc + tam giac trang (giong 1 video chua mo)
+    style="logo"  -> o do bo goc + tam giac + chu "YouTube" mau trang
+    style="white" -> nut play TRANG: vong tron trang mo + tam giac trang dac
+    scale         -> chieu rong huy hieu / chieu rong anh (0.30 = 30%)
     """
     from PIL import ImageDraw
     base = img.convert("RGBA")
     w, h = base.size
-    is_logo = str(style or "").strip().lower().startswith("logo")
+    style_key = str(style or "").strip().lower()
+    is_logo = style_key.startswith("logo")
+    is_white = style_key.startswith("white") or style_key.startswith("trang")
     try:
         scale = float(scale)
     except Exception:
         scale = 0.30
     scale = max(0.05, min(scale, 0.95))
+    if is_white:
+        return _draw_white_play_badge(base, scale, shadow).convert("RGB")
     bw = int(round(w * scale))
     bh = int(round(bw / (2.05 if is_logo else 1.417)))
     bw = max(16, min(bw, max(16, w - 2)))
@@ -4282,7 +4325,7 @@ Return STRICT JSON only:
         if not bool(self.cfg.get("youtube_badge_on_cover", False)):
             return "", 0.0
         style = str(self.cfg.get("youtube_badge_style", "play") or "play").strip().lower()
-        if style not in ("play", "logo"):
+        if style not in ("play", "logo", "white"):
             style = "play"
         try:
             pct = float(str(self.cfg.get("youtube_badge_scale", "30")).strip() or "30")
@@ -6911,7 +6954,7 @@ class App(tk.Tk):
         ttk.Label(badge_box, text="Kiểu logo", width=22).grid(row=1, column=0, sticky="w", pady=3)
         ttk.Combobox(
             badge_box, textvariable=self.vars["youtube_badge_style"],
-            values=("play", "logo"), state="readonly", width=12
+            values=("play", "logo", "white"), state="readonly", width=12
         ).grid(row=1, column=1, sticky="w", pady=3)
 
         ttk.Label(badge_box, text="Kích thước (% chiều rộng ảnh)", width=28).grid(
@@ -6932,7 +6975,9 @@ class App(tk.Tk):
 
         ttk.Label(
             badge_box,
-            text=("Kiểu 'play' = nút play đỏ (khuyên dùng, giống video chưa mở). "
+            text=("Kiểu 'play' = nút play đỏ (khuyên dùng, giống video chưa mở).\n"
+                  "Kiểu 'white' = nút play TRẮNG: vòng tròn trắng mờ + tam giác "
+                  "trắng (giống nút play overlay trên Facebook).\n"
                   "Kiểu 'logo' = thêm chữ YouTube.\n"
                   "Mặc định TẮT: ảnh bìa giữ nguyên như trước. Ảnh bìa Facebook "
                   "KHÔNG bị ảnh hưởng."),
@@ -7609,7 +7654,7 @@ class App(tk.Tk):
         import tempfile
         cfg = self.current_cfg()
         style = str(cfg.get("youtube_badge_style", "play") or "play").strip().lower()
-        if style not in ("play", "logo"):
+        if style not in ("play", "logo", "white"):
             style = "play"
         try:
             pct = float(str(cfg.get("youtube_badge_scale", "30")).strip() or "30")

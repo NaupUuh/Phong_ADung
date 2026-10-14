@@ -1,5 +1,5 @@
 {
-  "version": "22.100.20",
-  "notes": "Slink: gui title/content/seo_* dang dict da ngon ngu (en+vi/zh/ko) thay vi chuoi -> het bi gan nhan en; kem en lam fallback cho the title/og",
+  "version": "22.100.21",
+  "notes": "Logo YouTube tren anh bia: them kieu 'white' = nut play TRANG (vong tron trang mo + tam giac trang dac, giong nut play overlay Facebook); giu nguyen kieu play/logo cu",
   "date": "2026-10-14"
 }
