@@ -265,7 +265,7 @@ CRASH_LOG_FILE = Path.cwd() / "video_story_publisher_crash_V22.99.log"
 
 # Phiên bản tool. updater.py đọc dòng này để so với version.json trên GitHub;
 # release.py tự ghi lại mỗi lần phát hành bản mới.
-APP_VERSION = "22.100.19"
+APP_VERSION = "22.100.20"
 
 def _write_crash_log(title: str, exc_type=None, exc_value=None, exc_tb=None, extra: str = ""):
     """Write fatal/unhandled errors to a persistent text file."""
@@ -1778,6 +1778,30 @@ def slink_localized(value, lang: str):
                     break
         return text
     return str(value or "")
+
+
+# fableon CHI co 4 slot ngon ngu cho title/content/seo_*. Ngon ngu khac (Nhat,
+# Han, Tay Ban Nha...) khong co slot rieng -> ghi vao 'en' nhu truoc gio.
+SLINK_LOCALES = ("en", "vi", "zh", "ko")
+
+
+def slink_localized_value(text, locale: str) -> dict:
+    """Boc text thanh dict da ngon ngu {en,vi,zh,ko} de gui len fableon.
+
+    fableon luu CHUOI THUONG vao key 'en' bat ke noi dung viet bang ngon ngu nao,
+    nen bai tieng Viet truoc day bi gan nhan 'en' (da kiem chung tren bai that:
+    title = {"en": "Chiếc Xe Đen Trên Con Đường Đất"}). Gui dict -> server ghi
+    dung key locale.
+
+    LUON kem 'en' cung noi dung lam fallback: theme hien tai render <title> va
+    og:title tu key 'en', neu chi gui {vi: ...} thi cac the do se RONG.
+    """
+    text = str(text or "")
+    out = {"en": text}
+    key = str(locale or "").strip().lower()
+    if key and key != "en":
+        out[key] = text
+    return out
 
 
 def build_slink_chapters(story: dict, pagebreak_marker: str = "{{nextpage}}") -> list:
@@ -5107,7 +5131,11 @@ Return STRICT JSON only:
         }
 
     def _slink_locale(self) -> str:
-        """fableon ho tro en/vi/zh/ko; cac ngon ngu khac dung 'en'."""
+        """Slot ngon ngu fableon dung cho title/content/seo_* (en/vi/zh/ko).
+
+        fableon chi co 4 slot; ngon ngu khac (Nhat, Han, Tay Ban Nha...) khong co
+        slot rieng nen ghi vao 'en' — dung nhu hanh vi cu.
+        """
         key = effective_language(self.cfg)
         return {"Vietnamese": "vi", "Chinese": "zh", "Korean": "ko"}.get(key, "en")
 
@@ -5179,8 +5207,9 @@ Return STRICT JSON only:
         thumb = (story.get("thumbnail_url") or "").strip()
 
         payload = {
-            "title": title_text,
-            "content": f"<p>{html_escape(intro)}</p>" if intro else "",
+            "title": slink_localized_value(title_text, locale),
+            "content": slink_localized_value(
+                f"<p>{html_escape(intro)}</p>" if intro else "", locale),
             "slug": safe_slug(story.get("slug") or title_text or "story"),
             "status": str(self.cfg.get("slink_status") or "published").strip() or "published",
             "type": "post",
@@ -5196,12 +5225,14 @@ Return STRICT JSON only:
         if thumb.startswith("https://"):
             payload["featured_image"] = thumb
         # fableon yeu cau seo_* la ARRAY da ngon ngu; gui string -> 422.
+        # Gui kem ca 'en' lam fallback: theme hien tai render the <title>/og tu
+        # key 'en', chi gui {vi:...} thi cac the do rong.
         seo_title = clean_meta_text(story.get("meta_title") or story.get("title") or "", 240)
         seo_desc = clean_meta_text(story.get("meta_description") or "", 500)
         if seo_title:
-            payload["seo_title"] = {locale: seo_title}
+            payload["seo_title"] = slink_localized_value(seo_title, locale)
         if seo_desc:
-            payload["seo_description"] = {locale: seo_desc}
+            payload["seo_description"] = slink_localized_value(seo_desc, locale)
 
         if self.work_dir:
             try:
