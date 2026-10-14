@@ -1,5 +1,5 @@
 {
-  "version": "22.100.21",
-  "notes": "Logo YouTube tren anh bia: them kieu 'white' = nut play TRANG (vong tron trang mo + tam giac trang dac, giong nut play overlay Facebook); giu nguyen kieu play/logo cu",
+  "version": "22.100.22",
+  "notes": "Logo YouTube tren anh bia: kieu 'white' gio dung dung file PNG trong suot that (dia xam dac #B0B0B0 + tam giac trang nhon, vien cung, khong shadow) nhung san trong code base64 - thay ban ve bang PIL truoc do; giu nguyen kieu play/logo",
   "date": "2026-10-14"
 }
