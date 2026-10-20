@@ -1,5 +1,5 @@
 {
-  "version": "22.100.22",
-  "notes": "Logo YouTube tren anh bia: kieu 'white' gio dung dung file PNG trong suot that (dia xam dac #B0B0B0 + tam giac trang nhon, vien cung, khong shadow) nhung san trong code base64 - thay ban ve bang PIL truoc do; giu nguyen kieu play/logo",
-  "date": "2026-10-14"
+  "version": "22.100.23",
+  "notes": "Fix 'Story architecture failed: API response did not contain usable choices/message/content'. Model reasoning (deepseek-v4.x) dot het max_tokens vao reasoning_content roi tra content RONG voi finish_reason=length. Them ModelOutputTruncated + chat_finish_reason + tu nang max_tokens (x2, tran 32000) va thu lai; Story architecture 4000->8000, repair 2700->6000.",
+  "date": "2026-10-20"
 }

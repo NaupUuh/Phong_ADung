@@ -265,7 +265,7 @@ CRASH_LOG_FILE = Path.cwd() / "video_story_publisher_crash_V22.99.log"
 
 # Phiên bản tool. updater.py đọc dòng này để so với version.json trên GitHub;
 # release.py tự ghi lại mỗi lần phát hành bản mới.
-APP_VERSION = "22.100.22"
+APP_VERSION = "22.100.23"
 
 def _write_crash_log(title: str, exc_type=None, exc_value=None, exc_tb=None, extra: str = ""):
     """Write fatal/unhandled errors to a persistent text file."""
@@ -2575,6 +2575,32 @@ def parse_json_lenient(text: str) -> dict:
     raise ValueError(f"Không thể parse JSON từ model. Lỗi cuối: {last_error}")
 
 
+class ModelOutputTruncated(RuntimeError):
+    """Model het max_tokens truoc khi viet xong (finish_reason="length")."""
+
+
+def chat_finish_reason(response) -> str:
+    """Doc finish_reason tu SDK object hoac dict. Tra '' neu khong co."""
+    try:
+        choices = getattr(response, "choices", None)
+        if choices:
+            reason = getattr(choices[0], "finish_reason", None)
+            if reason:
+                return str(reason)
+    except Exception:
+        pass
+    try:
+        if isinstance(response, dict):
+            ch = response.get("choices") or []
+            if ch:
+                reason = (ch[0] or {}).get("finish_reason")
+                if reason:
+                    return str(reason)
+    except Exception:
+        pass
+    return ""
+
+
 def extract_chat_content(response, label: str = "API") -> str:
     """
     Robustly extract assistant text from OpenAI-compatible gateways.
@@ -2655,6 +2681,14 @@ def extract_chat_content(response, label: str = "API") -> str:
     preview = str(raw)
     if len(preview) > 4000:
         preview = preview[:4000] + "...[truncated]"
+
+    if chat_finish_reason(response) == "length":
+        raise ModelOutputTruncated(
+            f"{label}: model het max_tokens truoc khi viet xong "
+            f"(finish_reason=length) nen 'content' rong. Voi model reasoning "
+            f"(deepseek-v4.x) token bi dot het vao phan suy nghi.\n\n"
+            f"Response preview:\n{preview}"
+        )
 
     raise RuntimeError(
         f"{label}: API response did not contain usable choices/message/content.\n\n"
@@ -3775,11 +3809,17 @@ Do not invent unsupported events. Keep chronology. Use neutral role labels if na
         """Robust GPT/Vilao JSON call with retries and fresh client per attempt."""
         retries = max(2, min(5, int(self.cfg.get("chapter_retry_count", 3) or 3)))
         last_error = None
+        # Model reasoning dot het max_tokens vao phan suy nghi -> content rong.
+        # Gap thi phai NANG ngan sach token roi thu lai, khong the bao loi chung.
+        budget = max(256, int(max_tokens))
+        token_cap = max(budget, int(self.cfg.get("writer_max_tokens_cap", 32000) or 32000))
+        attempt = 0
 
-        for attempt in range(1, retries + 1):
+        while attempt < retries:
+            attempt += 1
             try:
                 client = self._new_writer_client()
-                self._log(f"{label}: API attempt {attempt}/{retries}")
+                self._log(f"{label}: API attempt {attempt}/{retries} | max_tokens={budget}")
                 lang_note = language_instruction(effective_language(self.cfg))
                 rsp = client.chat.completions.create(
                     model=self.cfg["writer_model"].strip(),
@@ -3806,19 +3846,35 @@ Do not invent unsupported events. Keep chronology. Use neutral role labels if na
                         {"role": "user", "content": prompt},
                     ],
                     temperature=temperature,
-                    max_tokens=max_tokens,
+                    max_tokens=budget,
                 )
                 raw = extract_chat_content(rsp, label)
                 obj = parse_json_lenient(raw)
                 if not isinstance(obj, dict):
                     raise RuntimeError(f"{label}: parsed response is not a JSON object")
+                if budget != max_tokens:
+                    self._log(f"{label}: xong voi max_tokens={budget}")
                 return obj
+            except ModelOutputTruncated as e:
+                last_error = e
+                self._log(f"WARNING {label} attempt {attempt} failed: {e}")
+                if budget < token_cap:
+                    new_budget = min(token_cap, budget * 2)
+                    self._log(
+                        f"{label}: response bi cat vi het token (max_tokens={budget}) "
+                        f"-> nang len {new_budget} va thu lai"
+                    )
+                    budget = new_budget
+                    attempt -= 1
+                    time.sleep(1.0)
+                    continue
+                self._log(f"{label}: van bi cat du da nang len {budget} (cham tran)")
             except Exception as e:
                 last_error = e
                 self._log(f"WARNING {label} attempt {attempt} failed: {e}")
-                if attempt < retries:
-                    delay = min(18, 3 * (2 ** (attempt - 1)))
-                    time.sleep(delay)
+            if attempt < retries:
+                delay = min(18, 3 * (2 ** (attempt - 1)))
+                time.sleep(delay)
 
         raise RuntimeError(f"{label} failed after {retries} attempts: {last_error}")
 
@@ -4091,7 +4147,7 @@ Return STRICT JSON only:
             + json.dumps(source, ensure_ascii=False)
             + "\n\nVIDEO TRANSCRIPT:\n" + transcript[:24000]
         )
-        raw = self._writer_json_call("Story architecture", prompt, max_tokens=4000)
+        raw = self._writer_json_call("Story architecture", prompt, max_tokens=8000)
         _safe_write_text(
             self.work_dir / "story_architecture_raw.json",
             json.dumps(raw, ensure_ascii=False, indent=2), encoding="utf-8",
@@ -4111,7 +4167,7 @@ Return STRICT JSON only:
             )
             try:
                 repaired = self._writer_json_call("Story architecture repair", repair_prompt,
-                                                  max_tokens=2700, temperature=0.1)
+                                                  max_tokens=6000, temperature=0.1)
                 _safe_write_text(
                     self.work_dir / "story_architecture_repair.json",
                     json.dumps(repaired, ensure_ascii=False, indent=2), encoding="utf-8",
