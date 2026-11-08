@@ -3458,6 +3458,15 @@ class StoryPipeline:
                         condition_on_previous_text=False,
                     )
                     segments = list(segments)
+            except TypeError as e:
+                msg = str(e)
+                if "metadata_errors" in msg:
+                    raise RuntimeError(
+                        "PyAV (av) ban moi da bo tham so 'metadata_errors' ma faster-whisper van dung. "
+                        "Chay lai tool de no tu cai av<19, hoac go tay: "
+                        "pip install -U \"av<19\". Chi tiet: " + msg
+                    ) from e
+                raise
             except RuntimeError as e:
                 msg = str(e)
                 if "mkl_malloc" in msg.lower() or "failed to allocate memory" in msg.lower():

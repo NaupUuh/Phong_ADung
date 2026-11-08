@@ -1,9 +1,41 @@
 # TIẾP TỤC — Phong_ADung
 
-**Cập nhật lần cuối:** 2026-10-14 21:56
-**Phiên bản hiện tại:** **v22.100.22** (đã release GitHub + push + sync ổ Z)
+**Cập nhật lần cuối:** 2026-11-08
+**Phiên bản hiện tại:** **v22.100.24** (đã release GitHub + push + sync ổ Z)
 **File chính:** `viet_drama_V22.99_stable_folder.py` (LF, 0 dòng CRLF, UTF-8 no BOM)
-**Nhánh:** main — commit `7919a8b`
+**Nhánh:** main — commit `1d4cb76`
+
+---
+
+## 0. v22.100.24 — FIX TRANSCRIBE (PyAV 19 bỏ `metadata_errors`)
+
+**Triệu chứng:** bấm transcribe là báo lỗi:
+```
+File "site-packages\faster_whisper\audio.py", line 46, in decode_audio
+    with av.open(input_file, mode="r", metadata_errors="ignore") as container:
+TypeError: open() got an unexpected keyword argument 'metadata_errors'
+```
+
+**Nguyên nhân (đã kiểm chứng, không đoán):**
+- `faster-whisper` (mọi bản 1.x) gọi `av.open(..., metadata_errors="ignore")`.
+- **PyAV 19.0.0 đã XOÁ** các kwarg `metadata_errors`, `metadata_encoding`, `stream_options`
+  trong `av.open()` (metadata luôn được đọc UTF-8, không còn cần tham số).
+- Máy cài `av` 19.x → mọi lần transcribe đều TypeError. **Không liên quan file video,
+  không liên quan ffmpeg, không phải máy yếu.**
+
+**Cách sửa (2 lớp):**
+1. `ensure_packages()`: spec `("av", "av")` → **`("av<19", "av")`**.
+   Thêm bước kiểm tra: nếu `av` đã cài >= 19 thì tự `pip install --upgrade "av<19"`.
+2. `_install_av_compat_shim()` chạy ngay sau `from faster_whisper import WhisperModel`:
+   nếu `av.__version__` major >= 19 thì bọc `av.open` để **bỏ** 3 kwarg đã bị xoá.
+   Hành vi giống hệt với caller 18.x → decode ra đúng float32.
+
+**Đã test thật:**
+- av **19.0.2** (cài tạm bằng `--target`): decode OK, `(32000,) float32`.
+- av **18.1.0** (môi trường hiện tại): decode OK, shim **không** kích hoạt.
+- `python -m py_compile`: pass. `pip install "av<19"` → "Requirement already satisfied".
+
+**File backup:** `viet_drama_V22.99_stable_folder.py.bak_av19` (bản trước khi sửa).
 
 ---
 
