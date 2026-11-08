@@ -1,5 +1,5 @@
 {
-  "version": "22.100.23",
-  "notes": "Fix 'Story architecture failed: API response did not contain usable choices/message/content'. Model reasoning (deepseek-v4.x) dot het max_tokens vao reasoning_content roi tra content RONG voi finish_reason=length. Them ModelOutputTruncated + chat_finish_reason + tu nang max_tokens (x2, tran 32000) va thu lai; Story architecture 4000->8000, repair 2700->6000.",
-  "date": "2026-10-20"
+  "version": "22.100.24",
+  "notes": "Fix transcribe: PyAV 19.0.0 bo metadata_errors -> faster-whisper decode_audio luon TypeError. Pin av<19 trong ensure_packages + them _install_av_compat_shim() strip kwarg da bi xoa. | Fix Story architecture 502/'no usable content': reasoning dot het max_tokens, finish_reason=length -> them ModelOutputTruncated + tu nang max_tokens x2 (tran 32000); architecture 4000->8000, repair 2700->6000.",
+  "date": "2026-11-08"
 }

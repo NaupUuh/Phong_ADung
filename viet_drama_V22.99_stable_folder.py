@@ -159,7 +159,9 @@ def ensure_packages():
 
     optional = [
         # Helpful for some environments / faster media handling.
-        ("av", "av"),
+        # PIN av<19: faster-whisper's decode_audio() passes metadata_errors=...,
+        # an argument PyAV 19.0.0 removed -> TypeError on every transcript.
+        ("av<19", "av"),
     ]
 
     def missing(import_name):
@@ -221,6 +223,32 @@ def ensure_packages():
             "\n\nHãy kiểm tra Internet, quyền cài đặt Python hoặc antivirus/firewall."
         )
 
+    # faster-whisper 1.x -> av.open(..., metadata_errors="ignore").
+    # PyAV 19.0.0 removed metadata_errors/metadata_encoding/stream_options, so a
+    # newer av turns every transcription into:
+    #   TypeError: open() got an unexpected keyword argument 'metadata_errors'
+    # Keep av at 18.x here; the runtime shim below is the second line of defence.
+    try:
+        from importlib import metadata as _md
+        _av_ver = _md.version("av")
+    except Exception:
+        _av_ver = ""
+    if _av_ver:
+        try:
+            _av_major = int(_av_ver.split(".")[0])
+        except Exception:
+            _av_major = 0
+        if _av_major >= 19:
+            print(f"[SETUP] av {_av_ver} is newer than faster-whisper supports -> pinning av<19")
+            try:
+                subprocess.check_call([
+                    sys.executable, "-m", "pip", "install",
+                    "--disable-pip-version-check", "--no-input", "--upgrade", "av<19",
+                ])
+                print("[SETUP] av downgraded.")
+            except Exception as _e:
+                print(f"[SETUP] av downgrade failed ({_e}) - runtime shim will handle it.")
+
     print("[SETUP] All required Python packages are ready.")
 
 ensure_packages()
@@ -232,6 +260,46 @@ from PIL import Image, ImageTk
 from openai import OpenAI
 from faster_whisper import WhisperModel
 from json_repair import repair_json
+
+
+def _install_av_compat_shim() -> None:
+    """Make faster-whisper survive PyAV >= 19.
+
+    faster-whisper (all 1.x releases) decodes audio with
+    ``av.open(path, mode="r", metadata_errors="ignore")``.
+    PyAV 19.0.0 removed that argument (metadata is always UTF-8 now), so any
+    machine that ends up with a modern av dies on every transcription with
+    ``TypeError: open() got an unexpected keyword argument 'metadata_errors'``.
+    Dropping the removed kwargs is behaviour-identical for 18.x callers.
+    """
+    try:
+        import av
+    except Exception:
+        return
+    try:
+        major = int(str(getattr(av, "__version__", "0")).split(".")[0])
+    except Exception:
+        major = 0
+    if major < 19:
+        return
+    if getattr(av.open, "_fw_compat_shim", False):
+        return
+
+    _real_open = av.open
+    _removed = ("metadata_errors", "metadata_encoding", "stream_options")
+
+    def _open_compat(*args, **kwargs):
+        for key in _removed:
+            kwargs.pop(key, None)
+        return _real_open(*args, **kwargs)
+
+    _open_compat._fw_compat_shim = True
+    _open_compat.__wrapped__ = _real_open
+    av.open = _open_compat
+    print(f"[SETUP] av {av.__version__} detected -> metadata_errors compatibility shim on")
+
+
+_install_av_compat_shim()
 
 _WHISPER_LOCK = threading.RLock()
 _WHISPER_CACHE = {}  # Shared within this app process; prevents one model per video worker.
@@ -265,7 +333,7 @@ CRASH_LOG_FILE = Path.cwd() / "video_story_publisher_crash_V22.99.log"
 
 # Phiên bản tool. updater.py đọc dòng này để so với version.json trên GitHub;
 # release.py tự ghi lại mỗi lần phát hành bản mới.
-APP_VERSION = "22.100.23"
+APP_VERSION = "22.100.24"
 
 def _write_crash_log(title: str, exc_type=None, exc_value=None, exc_tb=None, extra: str = ""):
     """Write fatal/unhandled errors to a persistent text file."""
